@@ -1,0 +1,6 @@
+/* Você pode manter algumas animações personalizadas que serão usadas no projeto */
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
