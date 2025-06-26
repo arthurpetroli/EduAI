@@ -11,9 +11,7 @@ const authService = {
       params.append('password', password);
       
       const response = await axios.post(`${API_URL}/auth/token`, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       });
       
       // Armazenar token no localStorage
