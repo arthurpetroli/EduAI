@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Obter URL de conexão do ambiente
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bank.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:axxcPWXXTaGvEIBlrXHneoAktesNLicL@trolley.proxy.rlwy.net:39090/railway")
 
 # Configuração específica para PostgreSQL
 if DATABASE_URL.startswith("postgresql"):

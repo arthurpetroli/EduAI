@@ -1,3 +1,15 @@
 uvicorn
 fastapi
 python-dotenv
+psycopg2-binary
+pydantic
+sqlalchemy
+pytest
+httpx
+python-jose
+passlib[bcrypt]
+axios
+google.generativeai
+reportlab
+python-docx
+python-multipart
