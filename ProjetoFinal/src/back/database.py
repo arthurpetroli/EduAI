@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Obter URL de conexão do ambiente
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:axxcPWXXTaGvEIBlrXHneoAktesNLicL@trolley.proxy.rlwy.net:39090/railway")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:QElEUUyQpnwAcNAYUINtWQFaJHyePFHW@yamabiko.proxy.rlwy.net:35449/railway")
 
 # Configuração específica para PostgreSQL
 if DATABASE_URL.startswith("postgresql"):

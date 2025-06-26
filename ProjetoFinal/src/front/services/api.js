@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'eduai-production-afcf.up.railway.app';
 
 const api = axios.create({
   baseURL: API_URL,

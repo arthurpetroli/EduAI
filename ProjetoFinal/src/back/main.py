@@ -30,7 +30,7 @@ app = FastAPI(
 # Configuração CORS corrigida
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://edu-ai-kappa.vercel.app/"],  # Adicionar ambos os endereços
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Adicionar ambos os endereços
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],  # Permitir todos os cabeçalhos
