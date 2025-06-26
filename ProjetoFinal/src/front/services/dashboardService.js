@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = 'https://eduai-production-afcf.up.railway.app';
 
 const dashboardService = {
   getDashboardData: async () => {
