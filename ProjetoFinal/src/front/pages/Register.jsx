@@ -7,7 +7,7 @@ const Register = () => {
     <Container maxW="container.xl" py={10}>
       <Box textAlign="center" mb={10}>
         <Image 
-          src="assets/education-logo.svg"
+          src="assets/logo(1).svg"
           alt="Logo Educacional" 
           mx="auto"
           mb={4}

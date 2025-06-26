@@ -7,7 +7,7 @@ const Login = ({ onLogin }) => {
     <Container maxW="container.xl" py={10}>
       <Box textAlign="center" mb={10}>
         <Image 
-          src="assets/education-logo.svg" // Remover a barra inicial
+          src="assets/logo(1).svg" // Remover a barra inicial
           alt="Logo Educacional" 
           mx="auto"
           mb={4}
