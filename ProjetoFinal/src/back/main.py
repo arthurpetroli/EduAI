@@ -31,11 +31,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://edu-ai-drab.vercel.app/",
+        "https://edu-ai-drab.vercel.app",
         "https://eduai-production-afcf.up.railway.app"
     ],  # Adicionar ambos os endereços
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],  # Permitir todos os cabeçalhos
 )
 
