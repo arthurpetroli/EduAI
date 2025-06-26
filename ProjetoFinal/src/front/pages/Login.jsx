@@ -1,13 +1,14 @@
 import React from 'react';
 import { Box, Container, Heading, Image } from '@chakra-ui/react';
 import LoginForm from '../components/LoginForm';
+import logo from '../assets/education-logo.svg'; // Adicione esta linha
 
 const Login = ({ onLogin }) => {
   return (
     <Container maxW="container.xl" py={10}>
       <Box textAlign="center" mb={10}>
         <Image 
-          src="assets/logo(1).svg" // Remover a barra inicial
+          src={logo} // Use a variável importada
           alt="Logo Educacional" 
           mx="auto"
           mb={4}
