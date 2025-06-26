@@ -35,7 +35,7 @@ app.add_middleware(
         "https://eduai-production-afcf.up.railway.app"
     ],  # Adicionar ambos os endereços
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],  # Permitir todos os cabeçalhos
 )
 
