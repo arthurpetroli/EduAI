@@ -59,6 +59,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import contentService from '../services/contentService';
 import api from '../services/api';
 import { FaFileExport } from 'react-icons/fa';
+import { FiInfo } from 'react-icons/fi';
 
 const AssessmentCreator = () => {
   const [formData, setFormData] = useState({
@@ -412,36 +413,30 @@ const AssessmentCreator = () => {
                   </NumberInput>
                 </FormControl>
                 
-                {/* Alerta informativo sobre a distribuição de dificuldade */}
-                <Alert status="info" borderRadius="md">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle>Distribuição de Dificuldade</AlertTitle>
-                    <AlertDescription>
-                      A avaliação será gerada com uma distribuição balanceada de questões:
-                      <HStack mt={2} spacing={6} justify="center">
-                        <Box>
-                          <HStack>
-                            <Box w={3} h={3} borderRadius="full" bg="green.400" />
-                            <Text fontWeight="medium">50% Fácil</Text>
-                          </HStack>
-                        </Box>
-                        <Box>
-                          <HStack>
-                            <Box w={3} h={3} borderRadius="full" bg="orange.400" />
-                            <Text fontWeight="medium">30% Médio</Text>
-                          </HStack>
-                        </Box>
-                        <Box>
-                          <HStack>
-                            <Box w={3} h={3} borderRadius="full" bg="red.400" />
-                            <Text fontWeight="medium">20% Difícil</Text>
-                          </HStack>
-                        </Box>
-                      </HStack>
-                    </AlertDescription>
-                  </Box>
-                </Alert>
+                <Box bg="blue.50" p={4} borderRadius="md" mb={4}>
+                  <Flex align="center" mb={2}>
+                    <Icon as={FiInfo} color="blue.500" mr={2} />
+                    <Text fontWeight="medium">Distribuição da Avaliação</Text>
+                  </Flex>
+                  
+                  <Text mb={2}>A avaliação será gerada com uma distribuição balanceada de dificuldade:</Text>
+                  <Flex mb={3} wrap="wrap" gap={2}>
+                    <Badge colorScheme="green" p={1}>50% Fácil</Badge>
+                    <Badge colorScheme="orange" p={1}>30% Médio</Badge>
+                    <Badge colorScheme="red" p={1}>20% Difícil</Badge>
+                  </Flex>
+                  
+                  <Text mb={2}>E com dois tipos de questões:</Text>
+                  <Flex mb={3} wrap="wrap" gap={2}>
+                    <Badge colorScheme="purple" p={1}>80% Múltipla Escolha</Badge>
+                    <Badge colorScheme="blue" p={1}>20% Dissertativa</Badge>
+                  </Flex>
+                  
+                  <Text fontSize="sm" color="gray.600">
+                    Obs.: O número final de questões pode ser 1 ou 2 menor que o solicitado devido aos 
+                    arredondamentos necessários para manter as distribuições 50-30-20 e 80-20.
+                  </Text>
+                </Box>
                 
                 <Button 
                   type="submit" 
@@ -505,28 +500,42 @@ const AssessmentCreator = () => {
                               <AccordionPanel pb={4} pt={2}>
                                 <Text mb={4}>{exercicio.enunciado}</Text>
                                 
-                                {exercicio.opcoes && Object.entries(exercicio.opcoes).map(([key, value]) => (
-                                  <Box 
-                                    key={key} 
-                                    py={1} 
-                                    pl={4}
-                                    backgroundColor={showAnswers && exercicio.resposta_correta === key ? "green.50" : "transparent"}
-                                    borderLeftWidth={showAnswers && exercicio.resposta_correta === key ? 4 : 0}
-                                    borderLeftColor="green.400"
-                                  >
-                                    <Text>
-                                      <strong>{key})</strong> {value}
-                                      {showAnswers && exercicio.resposta_correta === key && 
-                                        <Badge ml={2} colorScheme="green">Correta</Badge>
-                                      }
-                                    </Text>
+                                {exercicio.tipo === "dissertativa" ? (
+                                  <Box p={3} bg="gray.100" borderRadius="md">
+                                    <Text fontStyle="italic">Questão dissertativa</Text>
+                                    {showAnswers && (
+                                      <Box mt={3} p={3} bg="blue.50" borderRadius="md">
+                                        <Text fontWeight="bold">Resposta esperada:</Text>
+                                        <Text mt={2}>{exercicio.resposta_correta}</Text>
+                                      </Box>
+                                    )}
                                   </Box>
-                                ))}
-                                
-                                {showAnswers && (
-                                  <Box mt={4} p={3} bg="blue.50" borderRadius="md">
-                                    <Text fontWeight="bold">Resposta: {exercicio.resposta_correta}</Text>
-                                  </Box>
+                                ) : (
+                                  <>
+                                    {exercicio.opcoes && Object.entries(exercicio.opcoes).map(([key, value]) => (
+                                      <Box 
+                                        key={key} 
+                                        py={1} 
+                                        pl={4}
+                                        backgroundColor={showAnswers && exercicio.resposta_correta === key ? "green.50" : "transparent"}
+                                        borderLeftWidth={showAnswers && exercicio.resposta_correta === key ? 4 : 0}
+                                        borderLeftColor="green.400"
+                                      >
+                                        <Text>
+                                          <strong>{key})</strong> {value}
+                                          {showAnswers && exercicio.resposta_correta === key && 
+                                            <Badge ml={2} colorScheme="green">Correta</Badge>
+                                          }
+                                        </Text>
+                                      </Box>
+                                    ))}
+                                    
+                                    {showAnswers && (
+                                      <Box mt={4} p={3} bg="blue.50" borderRadius="md">
+                                        <Text fontWeight="bold">Resposta: {exercicio.resposta_correta}</Text>
+                                      </Box>
+                                    )}
+                                  </>
                                 )}
                               </AccordionPanel>
                             </AccordionItem>
