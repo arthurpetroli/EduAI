@@ -158,6 +158,7 @@ const MaterialGenerator = () => {
     if (!generatedText) return;
     
     setIsExporting(true);
+    
     try {
       await contentService.exportText(generatedText.id, format);
       toast({
