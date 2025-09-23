@@ -48,7 +48,11 @@ import {
   TabPanels, 
   Tab, 
   TabPanel,
-  Icon
+  Icon,
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertDescription
 } from '@chakra-ui/react';
 import { DragHandleIcon, DeleteIcon, EditIcon, AddIcon, DownloadIcon } from '@chakra-ui/icons';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -62,7 +66,7 @@ const AssessmentCreator = () => {
     materia: '',  // Campo de texto livre
     nivel: 'médio',
     quantidade_exercicios: 10,
-    dificuldade: 'médio'
+    dificuldade: 'mixed'  // Valor fixo para distribuição mista de dificuldade
   });
   const [assessment, setAssessment] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -106,7 +110,7 @@ const AssessmentCreator = () => {
         nivel: assessmentData.nivel_dificuldade || '',
         topico: assessmentData.titulo?.split(':')[1]?.trim() || assessmentData.titulo || '',
         quantidade_exercicios: assessmentData.exercicios?.length || 5,
-        dificuldade: mapDificuldade(assessmentData.nivel_dificuldade)
+        dificuldade: 'mixed'  // Sempre usar o valor fixo
       });
       
       // Definir a avaliação carregada
@@ -143,24 +147,14 @@ const AssessmentCreator = () => {
 
   // Adicione esta função auxiliar para mapear o nível de dificuldade
   const mapDificuldade = (nivel) => {
-    if (!nivel) return 'medio';
-    nivel = nivel.toLowerCase();
-    if (nivel.includes('fác')) return 'facil';
-    if (nivel.includes('dif')) return 'dificil';
-    return 'medio';
+    if (!nivel) return 'mixed';
+    return 'mixed';  // Sempre retorna mixed para usar a distribuição fixa
   };
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleDificuldadeChange = (value) => {
-    setFormData({
-      ...formData,
-      dificuldade: value
     });
   };
 
@@ -418,36 +412,36 @@ const AssessmentCreator = () => {
                   </NumberInput>
                 </FormControl>
                 
-                {/* Seção simplificada de dificuldade */}
-                <FormControl id="dificuldade" isRequired>
-                  <FormLabel>Nível de Dificuldade</FormLabel>
-                  <RadioGroup 
-                    onChange={handleDificuldadeChange} 
-                    value={formData.dificuldade}
-                    colorScheme="blue"
-                  >
-                    <HStack spacing={6} justify="space-around">
-                      <Radio value="facil">
-                        <HStack>
-                          <Box w={3} h={3} borderRadius="full" bg="green.400" />
-                          <Text>Fácil</Text>
-                        </HStack>
-                      </Radio>
-                      <Radio value="medio">
-                        <HStack>
-                          <Box w={3} h={3} borderRadius="full" bg="orange.400" />
-                          <Text>Médio</Text>
-                        </HStack>
-                      </Radio>
-                      <Radio value="dificil">
-                        <HStack>
-                          <Box w={3} h={3} borderRadius="full" bg="red.400" />
-                          <Text>Difícil</Text>
-                        </HStack>
-                      </Radio>
-                    </HStack>
-                  </RadioGroup>
-                </FormControl>
+                {/* Alerta informativo sobre a distribuição de dificuldade */}
+                <Alert status="info" borderRadius="md">
+                  <AlertIcon />
+                  <Box>
+                    <AlertTitle>Distribuição de Dificuldade</AlertTitle>
+                    <AlertDescription>
+                      A avaliação será gerada com uma distribuição balanceada de questões:
+                      <HStack mt={2} spacing={6} justify="center">
+                        <Box>
+                          <HStack>
+                            <Box w={3} h={3} borderRadius="full" bg="green.400" />
+                            <Text fontWeight="medium">50% Fácil</Text>
+                          </HStack>
+                        </Box>
+                        <Box>
+                          <HStack>
+                            <Box w={3} h={3} borderRadius="full" bg="orange.400" />
+                            <Text fontWeight="medium">30% Médio</Text>
+                          </HStack>
+                        </Box>
+                        <Box>
+                          <HStack>
+                            <Box w={3} h={3} borderRadius="full" bg="red.400" />
+                            <Text fontWeight="medium">20% Difícil</Text>
+                          </HStack>
+                        </Box>
+                      </HStack>
+                    </AlertDescription>
+                  </Box>
+                </Alert>
                 
                 <Button 
                   type="submit" 
