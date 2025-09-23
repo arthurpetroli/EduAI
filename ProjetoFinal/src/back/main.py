@@ -72,32 +72,40 @@ def gerar_texto_de_apoio(
     try:
         # Prompt generalizado que funciona para qualquer matéria
         prompt = f"""
-        Crie um texto de apoio didático e claro sobre o tópico '{request.topico}' da matéria de '{request.materia}', para alunos do ensino {request.nivel}.
+        Crie um texto de apoio didático de alta qualidade sobre '{request.topico}' na área de '{request.materia}', para estudantes de nível {request.nivel}.
 
         **Instruções de Formatação OBRIGATÓRIAS:**
-        - Utilize o formato Markdown para estruturar o texto.
-        - Use um título principal claro e relevante
-        - Divida o conteúdo em seções lógicas com subtítulos ('##')
-        - O texto DEVE conter parágrafos distintos (separados por uma linha em branco).
-        - Use subtítulos com '##' para as seções mais importantes.
-        - Se fizer sentido, use listas com marcadores (usando '*' ou '-') para listar exemplos ou pontos-chave.
-        - Use negrito (com '**texto**') para destacar os termos mais importantes.
-        - Utilize itálico para termos secundários quando apropriado.
-        - Use espaçamento adequado para melhorar a legibilidade.
+        - Use Markdown para estruturação.
+        - Título principal: claro, conciso e envolvente.
+        - Divida o conteúdo em 4-6 seções lógicas com subtítulos ('##').
+        - Cada seção deve ter 2-3 parágrafos bem desenvolvidos (separados por linha em branco).
+        - Para conceitos-chave: use negrito ('**termo**').
+        - Para termos técnicos secundários: use itálico ('*termo*').
+        - Para enumerações ou sequências: use listas numeradas (1., 2., etc.).
+        - Para itens não sequenciais: use marcadores ('*' ou '-').
+        - Inclua no mínimo 2 exemplos práticos ou aplicações reais.
+        - Termine com uma seção de resumo que conecte todos os conceitos apresentados.
 
-        **Adapte o conteúdo para a matéria específica:**
-        - Para matérias exatas: inclua exemplos práticos, fórmulas bem formatadas e explicações passo a passo
-        - Para matérias humanas: organize cronologicamente, destaque datas e eventos importantes, contextualize
-        - Para matérias de linguagem: use exemplos textuais, explique regras com clareza, compare termos semelhantes
-        - Para ciências: use analogias para conceitos complexos, organize taxonomias em listas, destaque termos científicos
+        **Adaptação específica por disciplina:**
+        - **Matemática/Física/Química**: inclua pelo menos 2 fórmulas relevantes (claramente explicadas), 3 exemplos numéricos resolvidos passo a passo.
+        - **História/Geografia/Sociologia**: apresente cronologia clara, contexto histórico-social, causas e efeitos, comparações entre perspectivas diferentes.
+        - **Línguas/Literatura**: exemplos linguísticos contrastantes, explicações etimológicas, exemplos de aplicação, comparações entre regras ou estilos.
+        - **Biologia/Ciências**: analogias para conceitos abstratos, classificações hierárquicas claras, relações de causa-efeito nos sistemas estudados.
 
-        **Estrutura Sugerida:**
-        1. Introdução ao conceito (contextualização)
-        2. Explicação principal do tópico
-        3. Exemplos ou aplicações práticas
-        4. Resumo ou pontos-chave para lembrar
+        **Estrutura obrigatória:**
+        1. Introdução contextualizada (conexão com conhecimento prévio do aluno)
+        2. Fundamentação teórica (conceitos essenciais explicados de forma simples)
+        3. Aplicações práticas ou exemplos do mundo real
+        4. Casos especiais ou exceções importantes (quando aplicável)
+        5. Resumo visual ou esquemático dos principais pontos
+        6. Conexões interdisciplinares (relacionar com outros tópicos ou disciplinas)
 
-        Mantenha uma linguagem adequada ao nível de ensino especificado ({request.nivel}). Gere o texto estruturado agora.
+        **Adaptação por nível:**
+        - **Fundamental**: linguagem simples, analogias com cotidiano, muitos exemplos visuais.
+        - **Médio**: equilíbrio entre teoria e aplicação, maior vocabulário técnico (sempre explicado), conexões interdisciplinares.
+        - **Superior**: maior profundidade teórica, discussão de pesquisas recentes, análise crítica, bibliografias sugeridas.
+
+        O conteúdo deve ser cientificamente preciso, pedagogicamente estruturado e engajador para o nível {request.nivel}.
         """
         
         response = model.generate_content(prompt)
@@ -688,3 +696,73 @@ def visualizar_lista_exercicios(
         raise HTTPException(status_code=403, detail="Acesso não autorizado a este material")
     
     return lista
+
+@app.post("/avaliacoes", response_model=schemas.ListaExercicios, tags=["Geração"])
+def gerar_avaliacao(
+    request: schemas.GeracaoAvaliacaoRequest,
+    db: Session = Depends(get_db),
+    model: genai.GenerativeModel = Depends(get_generative_model),
+    current_user: schemas.User = Depends(get_current_active_user)
+):
+    """
+    Gera uma avaliação com exercícios aleatórios com base no nível de dificuldade.
+    """
+    try:
+        prompt = f"""
+        Desenvolva uma avaliação completa de {request.quantidade_exercicios} questões sobre '{request.topico}' na área de '{request.materia}' para nível {request.nivel}, com dificuldade '{request.dificuldade}'.
+
+        **ESTRUTURA JSON OBRIGATÓRIA:**
+        - Resposta em JSON válido: {{"exercicios": [array_de_questões]}}.
+        - Cada questão DEVE conter EXATAMENTE: "enunciado", "tipo", "opcoes" e "resposta_correta".
+        - O campo "opcoes" deve ser {{"A": "texto", "B": "texto", ...}} ou null para dissertativas.
+
+        **Características por nível de dificuldade:**
+        - **Fácil**: 
+          * Aplicação direta de conceitos básicos
+          * Resolução em 1-2 passos lógicos
+          * Vocabulário simplificado, contextos familiares
+          * 70% aplicação, 30% compreensão
+
+        - **Médio**: 
+          * Combinação de dois ou mais conceitos
+          * Resolução em 3-4 passos lógicos
+          * Análise de situações menos óbvias
+          * 40% aplicação, 40% análise, 20% compreensão
+
+        - **Difícil**: 
+          * Integração complexa de múltiplos conceitos
+          * Situações não convencionais ou casos especiais
+          * Exige transferência de conhecimento entre contextos
+          * 20% aplicação, 50% análise, 30% síntese/avaliação
+
+        **Requisitos por tipo de questão:**
+        - **Múltipla escolha**: 5 alternativas, distratores baseados em erros conceituais comuns
+        - **Dissertativa**: Especificar extensão e critérios de avaliação na resposta
+        - **Verdadeiro/falso**: Conjunto de 5 afirmações interdependentes
+
+        **Distribuição da avaliação:**
+        - Cobertura equilibrada dos principais subtópicos
+        - Progressão clara de dificuldade dentro do nível escolhido
+        - 20% questões de conceitos fundamentais
+        - 60% questões de aplicação/análise
+        - 20% questões integrativas/desafiadoras
+
+        O nível de dificuldade '{request.dificuldade}' deve ser respeitado em todas as questões.
+        """
+        
+        response = model.generate_content(prompt)
+        
+        cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+
+        return crud.create_lista_exercicios(
+            db=db, 
+            request=request, 
+            dados_ia=cleaned_ia_response,
+            user_id=current_user.id,
+            tipo="avaliacao"
+        )
+        
+    except Exception as e:
+        error_location = f"Erro em gerar_avaliacao: {str(e)}"
+        logging.error(error_location, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_location)
