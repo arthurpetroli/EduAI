@@ -26,16 +26,16 @@ import api from '../services/api';
 
 const MaterialGenerator = () => {
   const [formData, setFormData] = useState({
-    materia: '',
-    nivel: '',
     topico: '',
+    materia: '',  // Agora será um campo de texto livre
+    nivel: 'médio', // Valor padrão
   });
-  
   const [generatedText, setGeneratedText] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [materialId, setMaterialId] = useState(null);
+  const [error, setError] = useState(null);
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -62,9 +62,9 @@ const MaterialGenerator = () => {
       
       // Preencher o formulário com os dados do material
       setFormData({
-        materia: material.materia || '',
-        nivel: material.nivel || '',
         topico: material.tema || '',
+        materia: material.materia || '',
+        nivel: material.nivel || 'médio', // Definindo nível padrão como 'médio'
       });
       
       // Definir o texto gerado
@@ -98,15 +98,17 @@ const MaterialGenerator = () => {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
     try {
       if (isEditMode) {
@@ -134,22 +136,12 @@ const MaterialGenerator = () => {
         });
       } else {
         // Criar novo material
-        const result = await contentService.generateSupportText(
-          formData.materia,
-          formData.nivel,
-          formData.topico
-        );
-        
-        setGeneratedText(result);
-        toast({
-          title: 'Material gerado com sucesso!',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
+        const response = await contentService.gerarTextoApoio(formData);
+        navigate('/materiais/' + response.id);
       }
     } catch (error) {
       console.error('Erro ao processar material:', error);
+      setError(error.response?.data?.detail || 'Ocorreu um erro ao processar sua solicitação');
       toast({
         title: `Erro ao ${isEditMode ? 'atualizar' : 'gerar'} material`,
         description: error.response?.data?.detail || 'Ocorreu um erro ao processar sua solicitação',
@@ -209,40 +201,6 @@ const MaterialGenerator = () => {
           <CardBody>
             <form onSubmit={handleSubmit}>
               <Stack spacing={4}>
-                <FormControl id="materia" isRequired>
-                  <FormLabel>Matéria</FormLabel>
-                  <Select 
-                    name="materia"
-                    placeholder="Selecione a matéria"
-                    value={formData.materia}
-                    onChange={handleChange}
-                  >
-                    <option value="Matemática">Matemática</option>
-                    <option value="Português">Português</option>
-                    <option value="História">História</option>
-                    <option value="Geografia">Geografia</option>
-                    <option value="Ciências">Ciências</option>
-                    <option value="Física">Física</option>
-                    <option value="Química">Química</option>
-                    <option value="Biologia">Biologia</option>
-                  </Select>
-                </FormControl>
-                
-                <FormControl id="nivel" isRequired>
-                  <FormLabel>Nível</FormLabel>
-                  <Select 
-                    name="nivel"
-                    placeholder="Selecione o nível"
-                    value={formData.nivel}
-                    onChange={handleChange}
-                  >
-                    <option value="Fundamental I">Fundamental I</option>
-                    <option value="Fundamental II">Fundamental II</option>
-                    <option value="Médio">Médio</option>
-                    <option value="Superior">Superior</option>
-                  </Select>
-                </FormControl>
-                
                 <FormControl id="topico" isRequired>
                   <FormLabel>Tópico</FormLabel>
                   <Input 
@@ -251,6 +209,33 @@ const MaterialGenerator = () => {
                     value={formData.topico}
                     onChange={handleChange}
                   />
+                </FormControl>
+                
+                <FormControl id="materia" isRequired>
+                  <FormLabel>Matéria</FormLabel>
+                  <Input
+                    type="text"
+                    id="materia"
+                    name="materia"
+                    value={formData.materia}
+                    onChange={handleChange}
+                    placeholder="Ex: Matemática, História, Física, Programação, etc."
+                    required
+                  />
+                </FormControl>
+                
+                <FormControl id="nivel" isRequired>
+                  <FormLabel>Nível de Ensino</FormLabel>
+                  <Select 
+                    name="nivel"
+                    value={formData.nivel}
+                    onChange={handleChange}
+                  >
+                    <option value="fundamental I">Ensino Fundamental I</option>
+                    <option value="fundamental II">Ensino Fundamental II</option>
+                    <option value="médio">Ensino Médio</option>
+                    <option value="superior">Ensino Superior</option>
+                  </Select>
                 </FormControl>
                 
                 <Button 

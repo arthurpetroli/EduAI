@@ -96,7 +96,7 @@ def gerar_docx_texto_apoio(texto: schemas.TextoGerado):
 
 def markdown_to_reportlab_html(markdown_text: str) -> str:
     """
-    Converte um Markdown simples para tags HTML que o ReportLab entende. (VERSÃO CORRIGIDA)
+    Converte um Markdown simples para tags HTML que o ReportLab entende.
     """
     html_text = ""
     for line in markdown_text.splitlines():
@@ -104,7 +104,7 @@ def markdown_to_reportlab_html(markdown_text: str) -> str:
 
         # Verifica cada tipo de formatação
         if not line:
-            html_text += "<br/><br/>"
+            html_text += "<br/><br/>"  # Duas quebras de linha para parágrafo
         elif line.startswith('## '):
             html_text += f"<h2>{line.lstrip('## ').strip()}</h2>"
         elif line.startswith('# '):
@@ -128,11 +128,18 @@ def markdown_to_reportlab_html(markdown_text: str) -> str:
                 else:
                     final_line += part
             html_text += final_line
+    
+    # Garantir que todas as tags <br> estejam no formato <br/>
+    html_text = html_text.replace("<br>", "<br/>")
+    
+    # Envolver o conteúdo em uma tag <para> para garantir estrutura adequada
+    html_text = f"<para>{html_text}</para>"
+    
     return html_text
 
 def gerar_pdf_texto_apoio(texto: schemas.TextoGerado):
     """
-    Cria um PDF processando o Markdown do texto de apoio.
+    Cria um PDF processando o Markdown do texto de apoio de forma simplificada.
     """
     file_stream = io.BytesIO()
     doc = SimpleDocTemplate(file_stream, pagesize=letter)
@@ -140,15 +147,69 @@ def gerar_pdf_texto_apoio(texto: schemas.TextoGerado):
     
     styles['h1'].fontSize = 18
     styles['h2'].fontSize = 14
+    styles['Normal'].spaceBefore = 6
+    styles['Normal'].spaceAfter = 6
     
+    # Criar uma lista para a história do documento
     story = [
         Paragraph(texto.tema, styles['h1']),
         Spacer(1, 12),
     ]
-
-    conteudo_html = markdown_to_reportlab_html(texto.conteudo)
-    story.append(Paragraph(conteudo_html, styles['BodyText']))
+    
+    # Processar o conteúdo linha por linha, sem gerar HTML complexo
+    for line in texto.conteudo.splitlines():
+        line = line.strip()
+        if not line:
+            story.append(Spacer(1, 6))  # Espaço em vez de <br/>
+        elif line.startswith('## '):
+            story.append(Paragraph(line.lstrip('## ').strip(), styles['h2']))
+        elif line.startswith('# '):
+            story.append(Paragraph(line.lstrip('# ').strip(), styles['h1']))
+        elif line.startswith('* '):
+            text = line.lstrip('* ').strip()
+            # Processar negrito de forma segura
+            processed_text = process_bold_tags(text)
+            story.append(Paragraph(f"• {processed_text}", styles['Normal']))
+        else:
+            # Processar negrito de forma segura
+            processed_text = process_bold_tags(line)
+            story.append(Paragraph(processed_text, styles['Normal']))
     
     doc.build(story)
     file_stream.seek(0)
     return file_stream
+
+def process_bold_tags(text):
+    """
+    Processa tags de negrito (**) em texto markdown, garantindo que todas as tags
+    sejam corretamente abertas e fechadas.
+    """
+    # Verificar se há um número par de marcadores **
+    count = text.count('**')
+    if count % 2 != 0:
+        # Se o número é ímpar, remova a última ocorrência para evitar tags não fechadas
+        last_pos = text.rindex('**')
+        text = text[:last_pos] + text[last_pos+2:]
+    
+    # Substituir alternadamente por <b> e </b>
+    is_open = False
+    result = ""
+    remaining = text
+    
+    while '**' in remaining:
+        pos = remaining.find('**')
+        result += remaining[:pos]
+        if is_open:
+            result += '</b>'
+        else:
+            result += '<b>'
+        is_open = not is_open
+        remaining = remaining[pos+2:]
+    
+    result += remaining
+    
+    # Garantir que todas as tags estejam fechadas
+    if is_open:
+        result += '</b>'
+    
+    return result

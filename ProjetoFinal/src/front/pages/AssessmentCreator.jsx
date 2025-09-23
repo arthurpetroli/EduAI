@@ -58,13 +58,12 @@ import { FaFileExport } from 'react-icons/fa';
 
 const AssessmentCreator = () => {
   const [formData, setFormData] = useState({
-    materia: '',
-    nivel: '',
     topico: '',
-    quantidade_exercicios: 5,
-    dificuldade: 'medio'
+    materia: '',  // Campo de texto livre
+    nivel: 'médio',
+    quantidade_exercicios: 10,
+    dificuldade: 'médio'
   });
-  
   const [assessment, setAssessment] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -365,23 +364,27 @@ const AssessmentCreator = () => {
           <CardBody>
             <form onSubmit={handleSubmit}>
               <Stack spacing={6}>
+                <FormControl id="topico" isRequired>
+                  <FormLabel>Tópico</FormLabel>
+                  <Input 
+                    name="topico"
+                    placeholder="Ex: Revolução Francesa"
+                    value={formData.topico}
+                    onChange={handleChange}
+                  />
+                </FormControl>
+                
                 <FormControl id="materia" isRequired>
                   <FormLabel>Matéria</FormLabel>
-                  <Select 
+                  <Input
+                    type="text"
+                    id="materia"
                     name="materia"
-                    placeholder="Selecione a matéria"
                     value={formData.materia}
                     onChange={handleChange}
-                  >
-                    <option value="Matemática">Matemática</option>
-                    <option value="Português">Português</option>
-                    <option value="História">História</option>
-                    <option value="Geografia">Geografia</option>
-                    <option value="Ciências">Ciências</option>
-                    <option value="Física">Física</option>
-                    <option value="Química">Química</option>
-                    <option value="Biologia">Biologia</option>
-                  </Select>
+                    placeholder="Ex: História, Matemática, Química, etc."
+                    required
+                  />
                 </FormControl>
                 
                 <FormControl id="nivel" isRequired>
@@ -397,16 +400,6 @@ const AssessmentCreator = () => {
                     <option value="Médio">Médio</option>
                     <option value="Superior">Superior</option>
                   </Select>
-                </FormControl>
-                
-                <FormControl id="topico" isRequired>
-                  <FormLabel>Tópico</FormLabel>
-                  <Input 
-                    name="topico"
-                    placeholder="Ex: Equações do 2º grau"
-                    value={formData.topico}
-                    onChange={handleChange}
-                  />
                 </FormControl>
                 
                 <FormControl id="quantidade_exercicios">

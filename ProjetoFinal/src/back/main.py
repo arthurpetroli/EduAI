@@ -5,7 +5,7 @@ import google.generativeai as genai
 from fastapi.responses import StreamingResponse, Response
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime  # Adicione esta linha
+from datetime import datetime
 import traceback
 import logging
 
@@ -16,7 +16,12 @@ import export_services
 from database import engine
 from auth import router as auth_router, get_current_active_user, get_db
 
-logging.basicConfig(filename='app.log', level=logging.ERROR)
+# Configuração de logging mais detalhada
+logging.basicConfig(
+    filename='app.log',
+    level=logging.ERROR,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 load_dotenv()
 models.Base.metadata.create_all(bind=engine)
@@ -64,82 +69,50 @@ def gerar_texto_de_apoio(
     """
     Gera um texto de apoio ou resumo sobre um tópico específico.
     """
-    # Ajustes específicos baseados na matéria
-    estilo_especifico = ""
-    if request.materia.lower() == "matemática":
-        estilo_especifico = """
-        - Use exemplos numéricos claros para ilustrar conceitos
-        - Quando incluir fórmulas matemáticas, formate-as em negrito e separadas em linhas próprias
-        - Evite notações complexas, prefira explicações passo a passo
-        - Use marcadores para listar propriedades ou regras importantes
-        """
-    elif request.materia.lower() in ["física", "química"]:
-        estilo_especifico = """
-        - Inclua exemplos práticos do cotidiano para ilustrar conceitos
-        - Quando mencionar fórmulas, explique o significado de cada variável
-        - Use marcadores para listar fenômenos ou reações importantes
-        - Divida temas complexos em partes menores e mais digeríveis
-        """
-    elif request.materia.lower() in ["história", "geografia"]:
-        estilo_especifico = """
-        - Organize o conteúdo em ordem cronológica (para história) ou espacial (para geografia)
-        - Destaque datas, locais e personagens importantes em negrito
-        - Use subtópicos para separar períodos históricos ou regiões geográficas
-        - Inclua contextos relevantes para facilitar a compreensão
-        """
-    elif request.materia.lower() == "português":
-        estilo_especifico = """
-        - Use exemplos de texto para ilustrar regras gramaticais ou conceitos literários
-        - Destaque exceções às regras em um formato visual diferente
-        - Organize regras gramaticais em tabelas quando apropriado
-        - Use comparações entre termos semelhantes para evitar confusões comuns
-        """
-    elif request.materia.lower() == "biologia":
-        estilo_especifico = """
-        - Use analogias para explicar processos biológicos complexos
-        - Organize informações sobre taxonomia ou classificações em listas
-        - Destaque termos científicos em negrito na primeira menção
-        - Use estrutura hierárquica para mostrar relações entre conceitos
-        """
-
-    prompt = f"""
-    Crie um texto de apoio didático e claro sobre o tópico '{request.topico}' da matéria de '{request.materia}', para alunos do ensino {request.nivel}.
-
-    **Instruções de Formatação OBRIGATÓRIAS:**
-    - Utilize o formato Markdown para estruturar o texto.
-    - Use um título principal claro e relevante
-    - Divida o conteúdo em seções lógicas com subtítulos ('##')
-    - O texto DEVE conter parágrafos distintos (separados por uma linha em branco).
-    - Use subtítulos com '##' para as seções mais importantes.
-    - Se fizer sentido, use listas com marcadores (usando '*' ou '-') para listar exemplos ou pontos-chave.
-    - Use negrito (com '**texto**') para destacar os termos mais importantes.
-    - Utilize itálico para termos secundários quando apropriado.
-    - Use espaçamento adequado para melhorar a legibilidade.
-
-    {estilo_especifico}
-
-    **Estrutura Sugerida:**
-    1. Introdução ao conceito (contextualização)
-    2. Explicação principal do tópico
-    3. Exemplos ou aplicações práticas
-    4. Resumo ou pontos-chave para lembrar
-
-    Mantenha uma linguagem adequada ao nível de ensino especificado. Gere o texto estruturado agora.
-    """
     try:
+        # Prompt generalizado que funciona para qualquer matéria
+        prompt = f"""
+        Crie um texto de apoio didático e claro sobre o tópico '{request.topico}' da matéria de '{request.materia}', para alunos do ensino {request.nivel}.
+
+        **Instruções de Formatação OBRIGATÓRIAS:**
+        - Utilize o formato Markdown para estruturar o texto.
+        - Use um título principal claro e relevante
+        - Divida o conteúdo em seções lógicas com subtítulos ('##')
+        - O texto DEVE conter parágrafos distintos (separados por uma linha em branco).
+        - Use subtítulos com '##' para as seções mais importantes.
+        - Se fizer sentido, use listas com marcadores (usando '*' ou '-') para listar exemplos ou pontos-chave.
+        - Use negrito (com '**texto**') para destacar os termos mais importantes.
+        - Utilize itálico para termos secundários quando apropriado.
+        - Use espaçamento adequado para melhorar a legibilidade.
+
+        **Adapte o conteúdo para a matéria específica:**
+        - Para matérias exatas: inclua exemplos práticos, fórmulas bem formatadas e explicações passo a passo
+        - Para matérias humanas: organize cronologicamente, destaque datas e eventos importantes, contextualize
+        - Para matérias de linguagem: use exemplos textuais, explique regras com clareza, compare termos semelhantes
+        - Para ciências: use analogias para conceitos complexos, organize taxonomias em listas, destaque termos científicos
+
+        **Estrutura Sugerida:**
+        1. Introdução ao conceito (contextualização)
+        2. Explicação principal do tópico
+        3. Exemplos ou aplicações práticas
+        4. Resumo ou pontos-chave para lembrar
+
+        Mantenha uma linguagem adequada ao nível de ensino especificado ({request.nivel}). Gere o texto estruturado agora.
+        """
+        
         response = model.generate_content(prompt)
         tema = f"{request.topico} ({request.materia} - {request.nivel})"
         
         # Limpa possíveis blocos de código da resposta da IA
         cleaned_response = response.text.strip().replace("```markdown", "").replace("```", "").strip()
 
-        # Ao criar o objeto TextoGerado, adicione o user_id
+        # Criação do texto gerado
         db_texto = models.TextoGerado(
             tema=tema, 
             conteudo=cleaned_response,
             materia=request.materia,
             nivel=request.nivel,
-            user_id=current_user.id  # Adicione esta linha
+            user_id=current_user.id
         )
         
         db.add(db_texto)
@@ -148,8 +121,9 @@ def gerar_texto_de_apoio(
         
         return db_texto
     except Exception as e:
-        logging.error(str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        error_location = f"Erro em gerar_texto_de_apoio: {str(e)}"
+        logging.error(error_location, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_location)
 
 @app.post("/listas-exercicios", response_model=schemas.ListaExercicios, tags=["Geração"])
 def gerar_lista_exercicios(
@@ -161,17 +135,20 @@ def gerar_lista_exercicios(
     """
     Gera uma lista de exercícios sobre um tópico específico.
     """
-    prompt = f"""
-    Com base no tópico '{request.topico}' da matéria de '{request.materia}' para o ensino {request.nivel}, gere {request.quantidade_exercicios} exercícios do tipo '{request.tipo_exercicio}'.
-
-    Instruções de Formato:
-    - Sua resposta deve ser um único objeto JSON.
-    - Este objeto deve ter uma única chave: "exercicios".
-    - O valor de "exercicios" deve ser uma LISTA de objetos, onde cada objeto representa um exercício.
-    - Cada exercício DEVE ter EXATAMENTE as seguintes chaves: "enunciado", "tipo", "opcoes", "resposta_correta".
-    - O campo "opcoes" deve ser um dicionário como {{"A": "...", "B": "..."}}. Se for dissertativo, use null.
-    """
     try:
+        prompt = f"""
+        Com base no tópico '{request.topico}' da matéria de '{request.materia}' para o ensino {request.nivel}, gere {request.quantidade_exercicios} exercícios do tipo '{request.tipo_exercicio}'.
+
+        Instruções de Formato:
+        - Sua resposta deve ser um único objeto JSON.
+        - Este objeto deve ter uma única chave: "exercicios".
+        - O valor de "exercicios" deve ser uma LISTA de objetos, onde cada objeto representa um exercício.
+        - Cada exercício DEVE ter EXATAMENTE as seguintes chaves: "enunciado", "tipo", "opcoes", "resposta_correta".
+        - O campo "opcoes" deve ser um dicionário como {{"A": "...", "B": "..."}}. Se for dissertativo, use null.
+        
+        Adapte os exercícios ao contexto da matéria '{request.materia}' e ao nível de ensino '{request.nivel}'.
+        """
+        
         response = model.generate_content(prompt)
         
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
@@ -181,12 +158,13 @@ def gerar_lista_exercicios(
             request=request, 
             dados_ia=cleaned_ia_response, 
             user_id=current_user.id,
-            tipo="exercicio"  # Especificar explicitamente o tipo como "exercicio"
+            tipo="exercicio"
         )
         
     except Exception as e:
-        logging.error(str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        error_location = f"Erro em gerar_lista_exercicios: {str(e)}"
+        logging.error(error_location, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_location)
 
 
 @app.post("/avaliacoes", response_model=schemas.ListaExercicios, tags=["Geração"])
@@ -199,18 +177,21 @@ def gerar_avaliacao(
     """
     Gera uma avaliação com exercícios aleatórios com base no nível de dificuldade.
     """
-    prompt = f"""
-    Com base no tópico '{request.topico}' da matéria de '{request.materia}' para o ensino {request.nivel}, gere {request.quantidade_exercicios} exercícios com o nível de dificuldade '{request.dificuldade}'.
-
-    Instruções de Formato OBRIGATÓRIAS:
-    - Sua resposta deve ser um único objeto JSON.
-    - Este objeto deve ter uma única chave: "exercicios".
-    - O valor de "exercicios" deve ser uma LISTA de objetos, onde cada objeto representa um exercício.
-    - Cada exercício DEVE ter EXATAMENTE as seguintes chaves: "enunciado", "tipo", "opcoes", "resposta_correta".
-    - O campo "opcoes" deve ser um dicionário como {{"A": "...", "B": "..."}}. Se for dissertativo, use null.
-    - Os exercícios devem ser todos do nível {request.dificuldade}.
-    """
     try:
+        prompt = f"""
+        Com base no tópico '{request.topico}' da matéria de '{request.materia}' para o ensino {request.nivel}, gere {request.quantidade_exercicios} exercícios com o nível de dificuldade '{request.dificuldade}'.
+
+        Instruções de Formato OBRIGATÓRIAS:
+        - Sua resposta deve ser um único objeto JSON.
+        - Este objeto deve ter uma única chave: "exercicios".
+        - O valor de "exercicios" deve ser uma LISTA de objetos, onde cada objeto representa um exercício.
+        - Cada exercício DEVE ter EXATAMENTE as seguintes chaves: "enunciado", "tipo", "opcoes", "resposta_correta".
+        - O campo "opcoes" deve ser um dicionário como {{"A": "...", "B": "..."}}. Se for dissertativo, use null.
+        - Os exercícios devem ser todos do nível {request.dificuldade}.
+        
+        Adapte os exercícios ao contexto específico da matéria '{request.materia}' e ao nível de ensino '{request.nivel}'.
+        """
+        
         response = model.generate_content(prompt)
         
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
@@ -220,12 +201,13 @@ def gerar_avaliacao(
             request=request, 
             dados_ia=cleaned_ia_response,
             user_id=current_user.id,
-            tipo="avaliacao"  # Especificar explicitamente o tipo como "avaliacao"
+            tipo="avaliacao"
         )
         
     except Exception as e:
-        logging.error(str(e), exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        error_location = f"Erro em gerar_avaliacao: {str(e)}"
+        logging.error(error_location, exc_info=True)
+        raise HTTPException(status_code=500, detail=error_location)
 
 @app.post("/export/assessment", response_class=Response, tags=["Exportação"])
 async def export_assessment(
@@ -296,6 +278,15 @@ async def log_requests(request, call_next):
     
     response = await call_next(request)
     return response
+
+def to_naive(dt):
+    """Converte um datetime para formato sem timezone (naive)"""
+    if dt is None:
+        return datetime.now()
+    if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
 @app.get("/dashboard", tags=["Usuário"])
 def get_dashboard(
     db: Session = Depends(get_db),
@@ -341,7 +332,7 @@ def get_dashboard(
         todos_materiais = textos + listas
         materiais_recentes = sorted(
             todos_materiais,
-            key=lambda x: getattr(x, 'data_criacao', datetime.now()),
+            key=lambda x: to_naive(getattr(x, 'data_criacao', None)),
             reverse=True
         )[:5]
         
