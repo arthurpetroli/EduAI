@@ -136,7 +136,11 @@ const MaterialGenerator = () => {
         });
       } else {
         // Criar novo material
-        const response = await contentService.gerarTextoApoio(formData);
+        const response = await contentService.generateSupportText(
+          formData.materia,
+          formData.nivel,
+          formData.topico
+        );
         navigate('/materiais/' + response.id);
       }
     } catch (error) {
