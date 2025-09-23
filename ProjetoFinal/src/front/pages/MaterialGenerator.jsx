@@ -232,10 +232,10 @@ const MaterialGenerator = () => {
                     value={formData.nivel}
                     onChange={handleChange}
                   >
-                    <option value="fundamental I">Ensino Fundamental I</option>
-                    <option value="fundamental II">Ensino Fundamental II</option>
-                    <option value="médio">Ensino Médio</option>
-                    <option value="superior">Ensino Superior</option>
+                    <option value="Fundamental I">Fundamental I</option>
+                    <option value="Fundamental II">Fundamental II</option>
+                    <option value="Médio">Médio</option>
+                    <option value="Superior">Superior</option>
                   </Select>
                 </FormControl>
                 
