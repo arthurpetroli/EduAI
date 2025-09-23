@@ -63,10 +63,10 @@ import { FaFileExport } from 'react-icons/fa';
 const AssessmentCreator = () => {
   const [formData, setFormData] = useState({
     topico: '',
-    materia: '',  // Campo de texto livre
+    materia: '',
     nivel: 'médio',
     quantidade_exercicios: 10,
-    dificuldade: 'mixed'  // Valor fixo para distribuição mista de dificuldade
+    dificuldade: 'balanceado'  // Valor fixo para distribuição 50/30/20
   });
   const [assessment, setAssessment] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -110,7 +110,7 @@ const AssessmentCreator = () => {
         nivel: assessmentData.nivel_dificuldade || '',
         topico: assessmentData.titulo?.split(':')[1]?.trim() || assessmentData.titulo || '',
         quantidade_exercicios: assessmentData.exercicios?.length || 5,
-        dificuldade: 'mixed'  // Sempre usar o valor fixo
+        dificuldade: 'balanceado'  // Sempre usar o valor fixo
       });
       
       // Definir a avaliação carregada
@@ -181,13 +181,13 @@ const AssessmentCreator = () => {
           isClosable: true,
         });
       } else {
-        // Criar nova avaliação
+        // Sempre use o valor fixo para dificuldade
         const result = await contentService.generateAssessment(
           formData.materia,
           formData.nivel,
           formData.topico,
           formData.quantidade_exercicios,
-          formData.dificuldade
+          'balanceado'  // Sempre usar este valor fixo
         );
         
         setAssessment(result);
