@@ -141,7 +141,13 @@ const MaterialGenerator = () => {
           formData.nivel,
           formData.topico
         );
-        navigate('/materiais/' + response.id);
+        setGeneratedText(response);  // Exibe o material na mesma página
+        toast({
+          title: 'Material gerado com sucesso!',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
       }
     } catch (error) {
       console.error('Erro ao processar material:', error);
