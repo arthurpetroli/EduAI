@@ -77,17 +77,19 @@ const contentService = {
   },
   
   // Gerar avaliação
-  generateAssessment: async (materia, nivel, topico, quantidade_exercicios, dificuldade) => {
+  generateAssessment: async (materia, nivel, topico, quantidade_exercicios) => {
     try {
+      // Remova o parâmetro de dificuldade da função e use valor fixo na chamada
       const response = await api.post('/avaliacoes', {
         materia,
         nivel,
         topico,
         quantidade_exercicios,
-        dificuldade
+        dificuldade: 'balanceado'  // Valor fixo para distribuição 50/30/20
       });
       return response.data;
     } catch (error) {
+      console.error('Erro ao gerar avaliação:', error);
       throw error;
     }
   },

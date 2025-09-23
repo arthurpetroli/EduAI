@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
@@ -75,8 +75,8 @@ class GeracaoAvaliacaoRequest(BaseModel):
     materia: str
     nivel: str
     topico: str
-    quantidade_exercicios: int = 5
-    dificuldade: str = "medio"
+    quantidade_exercicios: int = Field(ge=1, le=20)
+    dificuldade: str = "balanceado"  # Valor padrão, mas será ignorado pelo backend
 
 class TextoUpdateRequest(BaseModel):
     tema: Optional[str] = None

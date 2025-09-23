@@ -182,26 +182,79 @@ def gerar_avaliacao(
     model: genai.GenerativeModel = Depends(get_generative_model),
     current_user: schemas.User = Depends(get_current_active_user)
 ):
-    """
-    Gera uma avaliação com exercícios aleatórios com base no nível de dificuldade.
-    """
     try:
+        # Ignoramos o valor de request.dificuldade e usamos a distribuição fixa
         prompt = f"""
-        Com base no tópico '{request.topico}' da matéria de '{request.materia}' para o ensino {request.nivel}, gere {request.quantidade_exercicios} exercícios com o nível de dificuldade '{request.dificuldade}'.
+        Desenvolva uma avaliação educacional completa com {request.quantidade_exercicios} questões sobre '{request.topico}' na área de '{request.materia}' para nível {request.nivel}.
 
-        Instruções de Formato OBRIGATÓRIAS:
-        - Sua resposta deve ser um único objeto JSON.
-        - Este objeto deve ter uma única chave: "exercicios".
-        - O valor de "exercicios" deve ser uma LISTA de objetos, onde cada objeto representa um exercício.
-        - Cada exercício DEVE ter EXATAMENTE as seguintes chaves: "enunciado", "tipo", "opcoes", "resposta_correta".
-        - O campo "opcoes" deve ser um dicionário como {{"A": "...", "B": "..."}}. Se for dissertativo, use null.
-        - Os exercícios devem ser todos do nível {request.dificuldade}.
-        
-        Adapte os exercícios ao contexto específico da matéria '{request.materia}' e ao nível de ensino '{request.nivel}'.
+        **ESTRUTURA JSON OBRIGATÓRIA:**
+        - Responda APENAS com JSON válido no formato: {{"exercicios": [array_de_questões]}}.
+        - Cada questão deve conter: "enunciado", "tipo", "opcoes" e "resposta_correta".
+        - O campo "opcoes" deve ser {{"A": "texto", "B": "texto", ...}} para múltipla escolha, ou null para dissertativas.
+        - O campo "tipo" deve ser "multipla_escolha" ou "dissertativa" conforme o tipo da questão.
+
+        **DISTRIBUIÇÃO EXATA DE DIFICULDADE:**
+        - EXATAMENTE 50% das questões devem ser de NÍVEL FÁCIL: aplicação direta de conceitos básicos
+        - EXATAMENTE 30% das questões devem ser de NÍVEL MÉDIO: combinação de dois conceitos, análise mais elaborada
+        - EXATAMENTE 20% das questões devem ser de NÍVEL DIFÍCIL: integração complexa de múltiplos conceitos, casos excepcionais
+
+        **DISTRIBUIÇÃO DE TIPOS DE QUESTÕES:**
+        - EXATAMENTE 80% das questões devem ser de MÚLTIPLA ESCOLHA (tipo: "multipla_escolha")
+        - EXATAMENTE 20% das questões devem ser DISSERTATIVAS (tipo: "dissertativa")
+
+        Para {request.quantidade_exercicios} questões, isso significa:
+        - {int(request.quantidade_exercicios * 0.5)} questões fáceis
+        - {int(request.quantidade_exercicios * 0.3)} questões médias
+        - {int(request.quantidade_exercicios * 0.2)} questões difíceis
+        - {int(request.quantidade_exercicios * 0.8)} questões de múltipla escolha
+        - {int(request.quantidade_exercicios * 0.2)} questões dissertativas
+
+        **CARACTERÍSTICAS DAS QUESTÕES:**
+        - MÚLTIPLA ESCOLHA: 5 alternativas (A a E), apenas uma correta, distratores plausíveis
+        - DISSERTATIVAS: Enunciado claro que exija desenvolvimento do tema, sem opções (opcoes: null)
+
+        **REQUISITOS POR NÍVEL:**
+        - Questões FÁCEIS: vocabulário simples, resolução direta, aplicação básica de um único conceito
+        - Questões MÉDIAS: análise de situações menos óbvias, relacionar dois conceitos, exigir 2-3 passos de raciocínio
+        - Questões DIFÍCEIS: problemas complexos, análise aprofundada, exceções às regras gerais, múltiplos conceitos interligados
+
+        IMPORTANTE: Distribua proporcionalmente as questões dissertativas entre os três níveis de dificuldade.
         """
-        
-        response = model.generate_content(prompt)
-        
+
+        # Resto do código permanece igual
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+        ]
+
+        generation_config = {
+            "temperature": 0.6,
+            "top_p": 0.8,
+            "top_k": 40,
+            "max_output_tokens": 8192,
+        }
+
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+
+        # Resto do código permanece igual...
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
 
         return crud.create_lista_exercicios(
@@ -704,54 +757,79 @@ def gerar_avaliacao(
     model: genai.GenerativeModel = Depends(get_generative_model),
     current_user: schemas.User = Depends(get_current_active_user)
 ):
-    """
-    Gera uma avaliação com exercícios aleatórios com base no nível de dificuldade.
-    """
     try:
+        # Ignoramos o valor de request.dificuldade e usamos a distribuição fixa
         prompt = f"""
-        Desenvolva uma avaliação completa de {request.quantidade_exercicios} questões sobre '{request.topico}' na área de '{request.materia}' para nível {request.nivel}, com dificuldade '{request.dificuldade}'.
+        Desenvolva uma avaliação educacional completa com {request.quantidade_exercicios} questões sobre '{request.topico}' na área de '{request.materia}' para nível {request.nivel}.
 
         **ESTRUTURA JSON OBRIGATÓRIA:**
-        - Resposta em JSON válido: {{"exercicios": [array_de_questões]}}.
-        - Cada questão DEVE conter EXATAMENTE: "enunciado", "tipo", "opcoes" e "resposta_correta".
-        - O campo "opcoes" deve ser {{"A": "texto", "B": "texto", ...}} ou null para dissertativas.
+        - Responda APENAS com JSON válido no formato: {{"exercicios": [array_de_questões]}}.
+        - Cada questão deve conter: "enunciado", "tipo", "opcoes" e "resposta_correta".
+        - O campo "opcoes" deve ser {{"A": "texto", "B": "texto", ...}} para múltipla escolha, ou null para dissertativas.
+        - O campo "tipo" deve ser "multipla_escolha" ou "dissertativa" conforme o tipo da questão.
 
-        **Características por nível de dificuldade:**
-        - **Fácil**: 
-          * Aplicação direta de conceitos básicos
-          * Resolução em 1-2 passos lógicos
-          * Vocabulário simplificado, contextos familiares
-          * 70% aplicação, 30% compreensão
+        **DISTRIBUIÇÃO EXATA DE DIFICULDADE:**
+        - EXATAMENTE 50% das questões devem ser de NÍVEL FÁCIL: aplicação direta de conceitos básicos
+        - EXATAMENTE 30% das questões devem ser de NÍVEL MÉDIO: combinação de dois conceitos, análise mais elaborada
+        - EXATAMENTE 20% das questões devem ser de NÍVEL DIFÍCIL: integração complexa de múltiplos conceitos, casos excepcionais
 
-        - **Médio**: 
-          * Combinação de dois ou mais conceitos
-          * Resolução em 3-4 passos lógicos
-          * Análise de situações menos óbvias
-          * 40% aplicação, 40% análise, 20% compreensão
+        **DISTRIBUIÇÃO DE TIPOS DE QUESTÕES:**
+        - EXATAMENTE 80% das questões devem ser de MÚLTIPLA ESCOLHA (tipo: "multipla_escolha")
+        - EXATAMENTE 20% das questões devem ser DISSERTATIVAS (tipo: "dissertativa")
 
-        - **Difícil**: 
-          * Integração complexa de múltiplos conceitos
-          * Situações não convencionais ou casos especiais
-          * Exige transferência de conhecimento entre contextos
-          * 20% aplicação, 50% análise, 30% síntese/avaliação
+        Para {request.quantidade_exercicios} questões, isso significa:
+        - {int(request.quantidade_exercicios * 0.5)} questões fáceis
+        - {int(request.quantidade_exercicios * 0.3)} questões médias
+        - {int(request.quantidade_exercicios * 0.2)} questões difíceis
+        - {int(request.quantidade_exercicios * 0.8)} questões de múltipla escolha
+        - {int(request.quantidade_exercicios * 0.2)} questões dissertativas
 
-        **Requisitos por tipo de questão:**
-        - **Múltipla escolha**: 5 alternativas, distratores baseados em erros conceituais comuns
-        - **Dissertativa**: Especificar extensão e critérios de avaliação na resposta
-        - **Verdadeiro/falso**: Conjunto de 5 afirmações interdependentes
+        **CARACTERÍSTICAS DAS QUESTÕES:**
+        - MÚLTIPLA ESCOLHA: 5 alternativas (A a E), apenas uma correta, distratores plausíveis
+        - DISSERTATIVAS: Enunciado claro que exija desenvolvimento do tema, sem opções (opcoes: null)
 
-        **Distribuição da avaliação:**
-        - Cobertura equilibrada dos principais subtópicos
-        - Progressão clara de dificuldade dentro do nível escolhido
-        - 20% questões de conceitos fundamentais
-        - 60% questões de aplicação/análise
-        - 20% questões integrativas/desafiadoras
+        **REQUISITOS POR NÍVEL:**
+        - Questões FÁCEIS: vocabulário simples, resolução direta, aplicação básica de um único conceito
+        - Questões MÉDIAS: análise de situações menos óbvias, relacionar dois conceitos, exigir 2-3 passos de raciocínio
+        - Questões DIFÍCEIS: problemas complexos, análise aprofundada, exceções às regras gerais, múltiplos conceitos interligados
 
-        O nível de dificuldade '{request.dificuldade}' deve ser respeitado em todas as questões.
+        IMPORTANTE: Distribua proporcionalmente as questões dissertativas entre os três níveis de dificuldade.
         """
-        
-        response = model.generate_content(prompt)
-        
+
+        # Resto do código permanece igual
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+        ]
+
+        generation_config = {
+            "temperature": 0.6,
+            "top_p": 0.8,
+            "top_k": 40,
+            "max_output_tokens": 8192,
+        }
+
+        response = model.generate_content(
+            prompt,
+            generation_config=generation_config,
+            safety_settings=safety_settings
+        )
+
+        # Resto do código permanece igual...
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
 
         return crud.create_lista_exercicios(
