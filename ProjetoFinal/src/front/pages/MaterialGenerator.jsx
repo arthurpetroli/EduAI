@@ -228,6 +228,7 @@ const MaterialGenerator = () => {
                   <FormLabel>Nível de Ensino</FormLabel>
                   <Select 
                     name="nivel"
+                    placeholder="Selecione o nível"
                     value={formData.nivel}
                     onChange={handleChange}
                   >
