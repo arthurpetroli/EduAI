@@ -65,7 +65,6 @@ const MaterialsLibrary = () => {
     discipline: 'all',
     gradeLevel: 'all'
   });
-  const [sortOption, setSortOption] = useState('recent');
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [materials, setMaterials] = useState([]);
@@ -140,60 +139,40 @@ const MaterialsLibrary = () => {
 
   // Função para pesquisar e filtrar materiais
   const getFilteredMaterials = () => {
-    // Se não houver termo de busca, aplicar apenas os outros filtros
-    if (!searchTerm || searchTerm.trim() === '') {
-      return materials.filter(material => {
-        const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
-        const disciplineMatch = selectedFilters.discipline === 'all' || 
-          material.discipline === selectedFilters.discipline;
-        const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
-          material.gradeLevel === selectedFilters.gradeLevel;
-        
-        return typeMatch && disciplineMatch && gradeLevelMatch;
-      }).sort(sortMaterials);
-    }
+    let filtered = materials;
     
-    // Se houver termo de busca, aplicar busca mais abrangente
-    const searchTermLower = searchTerm.toLowerCase().trim();
-    
-    return materials.filter(material => {
-      // Busca em vários campos
-      const titleMatch = material.title && material.title.toLowerCase().includes(searchTermLower);
-      const disciplineMatch = material.discipline && material.discipline.toLowerCase().includes(searchTermLower);
-      const descriptionMatch = material.description && material.description.toLowerCase().includes(searchTermLower);
-      const contentMatch = material.content && material.content.toLowerCase().includes(searchTermLower);
-      
-      // Considerar qualquer correspondência como resultado positivo
-      const searchMatch = titleMatch || disciplineMatch || descriptionMatch || contentMatch;
-      
-      // Aplicar os outros filtros
+    // Aplicar filtros de tipo, disciplina e nível
+    filtered = filtered.filter(material => {
       const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
-      const disciplineFilterMatch = selectedFilters.discipline === 'all' || 
+      const disciplineMatch = selectedFilters.discipline === 'all' || 
         material.discipline === selectedFilters.discipline;
       const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
         material.gradeLevel === selectedFilters.gradeLevel;
       
-      return searchMatch && typeMatch && disciplineFilterMatch && gradeLevelMatch;
-    }).sort(sortMaterials);
-  };
-
-  // Função auxiliar para ordenação
-  const sortMaterials = (a, b) => {
-    if (sortOption === 'recent') {
-      // Garantir que as datas são tratadas corretamente
+      return typeMatch && disciplineMatch && gradeLevelMatch;
+    });
+    
+    // Aplicar busca textual, se houver termo de busca
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchTermLower = searchTerm.toLowerCase().trim();
+      
+      filtered = filtered.filter(material => {
+        // Busca em vários campos
+        const titleMatch = material.title && material.title.toLowerCase().includes(searchTermLower);
+        const disciplineMatch = material.discipline && material.discipline.toLowerCase().includes(searchTermLower);
+        const descriptionMatch = material.description && material.description.toLowerCase().includes(searchTermLower);
+        
+        // Considerar qualquer correspondência como resultado positivo
+        return titleMatch || disciplineMatch || descriptionMatch;
+      });
+    }
+    
+    // Ordenação fixa - mais recentes primeiro
+    return filtered.sort((a, b) => {
       const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
       return dateB - dateA; // Ordem decrescente (mais recentes primeiro)
-    } 
-    else if (sortOption === 'oldest') {
-      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      return dateA - dateB; // Ordem crescente (mais antigos primeiro)
-    } 
-    else if (sortOption === 'alphabetical') {
-      return (a.title || '').localeCompare(b.title || '');
-    }
-    return 0;
+    });
   };
 
   const handleViewDetail = async (material) => {
@@ -504,16 +483,6 @@ const MaterialsLibrary = () => {
               Avaliações
             </Button>
           </ButtonGroup>
-          
-          <Select 
-            placeholder="Ordenar por"
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            maxW="200px"
-          >
-            <option value="recent">Mais recentes</option>
-            <option value="oldest">Mais antigos</option>
-          </Select>
         </Flex>
       </Box>
 
