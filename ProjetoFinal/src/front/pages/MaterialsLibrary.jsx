@@ -60,6 +60,7 @@ const MaterialsLibrary = () => {
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [searchTerm, setSearchTerm] = useState('');
+  const [tempSearchTerm, setTempSearchTerm] = useState(''); // Estado temporário para o termo de busca
   const [selectedFilters, setSelectedFilters] = useState({
     type: 'all',
     discipline: 'all',
@@ -188,7 +189,7 @@ const MaterialsLibrary = () => {
     // Atualizar o estado dos materiais filtrados
     setFilteredMaterials(filtered);
     
-  }, [materials, searchTerm, selectedFilters]); // Este useEffect será executado sempre que qualquer um destes valores mudar
+  }, [materials, selectedFilters]); // Note que searchTerm não está mais aqui
 
   // Função para pesquisar e filtrar materiais
   const getFilteredMaterials = () => {
@@ -375,6 +376,50 @@ const MaterialsLibrary = () => {
     // setFilterChanged(!filterChanged);
   };
 
+  // Adicione esta função de filtro após a função fetchMaterials:
+  const applyFilters = (searchText) => {
+    // Aplicar filtros de tipo, disciplina e nível
+    let filtered = [...materials].filter(material => {
+      const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
+      const disciplineMatch = selectedFilters.discipline === 'all' || 
+        material.discipline === selectedFilters.discipline;
+      const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
+        material.gradeLevel === selectedFilters.gradeLevel;
+      
+      return typeMatch && disciplineMatch && gradeLevelMatch;
+    });
+    
+    // Aplicar busca textual se houver termo confirmado
+    if (searchText && searchText.trim() !== '') {
+      const searchTermLower = searchText.toLowerCase().trim();
+      
+      filtered = filtered.filter(material => {
+        if (!material) return false;
+        
+        const titleMatch = material.title ? 
+          material.title.toLowerCase().includes(searchTermLower) : false;
+        
+        const disciplineMatch = material.discipline ? 
+          material.discipline.toLowerCase().includes(searchTermLower) : false;
+        
+        const descriptionMatch = material.description ? 
+          material.description.toLowerCase().includes(searchTermLower) : false;
+        
+        return titleMatch || disciplineMatch || descriptionMatch;
+      });
+    }
+    
+    // Ordenar por data (mais recentes primeiro)
+    filtered = filtered.sort((a, b) => {
+      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return dateB - dateA;
+    });
+    
+    // Atualizar o estado dos materiais filtrados
+    setFilteredMaterials(filtered);
+  };
+
   return (
     <Container maxW="container.xl" py={8}>
       <Heading mb={2}>Biblioteca de Materiais</Heading>
@@ -460,82 +505,47 @@ const MaterialsLibrary = () => {
           <InputLeftElement pointerEvents="none">
             <Icon as={FaSearch} color="gray.300" />
           </InputLeftElement>
+          
           <Input 
             placeholder="Buscar materiais, exercícios ou avaliações..." 
-            value={searchTerm}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setSearchTerm(newValue);
-              
-              // Forçar uma atualização imediata dos materiais filtrados
-              const searchTermLower = newValue.toLowerCase().trim();
-              
-              let filtered = [...materials].filter(material => {
-                const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
-                const disciplineMatch = selectedFilters.discipline === 'all' || 
-                  material.discipline === selectedFilters.discipline;
-                const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
-                  material.gradeLevel === selectedFilters.gradeLevel;
-                
-                return typeMatch && disciplineMatch && gradeLevelMatch;
-              });
-              
-              // Aplicar busca textual imediatamente
-              if (newValue && newValue.trim() !== '') {
-                filtered = filtered.filter(material => {
-                  if (!material) return false;
-                  
-                  const titleMatch = material.title ? 
-                    material.title.toLowerCase().includes(searchTermLower) : false;
-                  
-                  const disciplineMatch = material.discipline ? 
-                    material.discipline.toLowerCase().includes(searchTermLower) : false;
-                  
-                  const descriptionMatch = material.description ? 
-                    material.description.toLowerCase().includes(searchTermLower) : false;
-                  
-                  return titleMatch || disciplineMatch || descriptionMatch;
-                });
+            value={tempSearchTerm}
+            onChange={(e) => setTempSearchTerm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                setSearchTerm(tempSearchTerm);
+                applyFilters(tempSearchTerm);
               }
-              
-              // Ordenar por data
-              filtered = filtered.sort((a, b) => {
-                const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-                const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-                return dateB - dateA;
-              });
-              
-              setFilteredMaterials(filtered);
             }}
             pr="4.5rem"
           />
-          {searchTerm && (
-            <InputRightElement width="4.5rem">
-              <Button h="1.75rem" size="sm" onClick={() => {
-                setSearchTerm('');
-                // Redefinir materiais filtrados quando limpar
-                let filtered = [...materials].filter(material => {
-                  const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
-                  const disciplineMatch = selectedFilters.discipline === 'all' || 
-                    material.discipline === selectedFilters.discipline;
-                  const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
-                    material.gradeLevel === selectedFilters.gradeLevel;
-                  
-                  return typeMatch && disciplineMatch && gradeLevelMatch;
-                });
-                
-                filtered = filtered.sort((a, b) => {
-                  const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-                  const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-                  return dateB - dateA;
-                });
-                
-                setFilteredMaterials(filtered);
-              }}>
+          
+          <InputRightElement width="4.5rem">
+            {tempSearchTerm ? (
+              <Button 
+                h="1.75rem" 
+                size="sm" 
+                onClick={() => {
+                  setTempSearchTerm('');
+                  setSearchTerm('');
+                  applyFilters('');
+                }}
+              >
                 Limpar
               </Button>
-            </InputRightElement>
-          )}
+            ) : (
+              <Button 
+                h="1.75rem" 
+                size="sm" 
+                onClick={() => {
+                  setSearchTerm(tempSearchTerm);
+                  applyFilters(tempSearchTerm);
+                }}
+              >
+                Buscar
+              </Button>
+            )}
+          </InputRightElement>
         </InputGroup>
         
         <Flex wrap="wrap" gap={4}>
