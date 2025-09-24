@@ -68,9 +68,8 @@ const MaterialsLibrary = () => {
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [viewMode, setViewMode] = useState('grid');
   const [materials, setMaterials] = useState([]);
+  const [filteredMaterials, setFilteredMaterials] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  // Adicione um novo estado para controlar quando os filtros foram alterados
-  const [filterChanged, setFilterChanged] = useState(false);
 
   // Carregar materiais ao montar o componente
   useEffect(() => {
@@ -128,7 +127,9 @@ const MaterialsLibrary = () => {
       }));
       
       // Combinar todos os materiais
-      setMaterials([...textos, ...listas, ...avaliacoes]);
+      const allMaterials = [...textos, ...listas, ...avaliacoes];
+      setMaterials(allMaterials);
+      setFilteredMaterials(allMaterials); // Inicializar materiais filtrados
     } catch (error) {
       console.error('Erro ao carregar materiais:', error);
       toast({
@@ -143,12 +144,10 @@ const MaterialsLibrary = () => {
     }
   };
 
-  // Função para pesquisar e filtrar materiais
-  const getFilteredMaterials = () => {
-    let filtered = [...materials]; // Crie uma cópia para evitar problemas de referência
-    
+  // Adicione este useEffect para atualizar os materiais filtrados sempre que qualquer critério mudar
+  useEffect(() => {
     // Aplicar filtros de tipo, disciplina e nível
-    filtered = filtered.filter(material => {
+    let filtered = [...materials].filter(material => {
       const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
       const disciplineMatch = selectedFilters.discipline === 'all' || 
         material.discipline === selectedFilters.discipline;
@@ -158,14 +157,14 @@ const MaterialsLibrary = () => {
       return typeMatch && disciplineMatch && gradeLevelMatch;
     });
     
-    // Aplicar busca textual imediatamente
+    // Aplicar busca textual se houver termo
     if (searchTerm && searchTerm.trim() !== '') {
       const searchTermLower = searchTerm.toLowerCase().trim();
       
       filtered = filtered.filter(material => {
         if (!material) return false;
         
-        // Busca em vários campos com verificação de nulos
+        // Busca em vários campos
         const titleMatch = material.title ? 
           material.title.toLowerCase().includes(searchTermLower) : false;
         
@@ -175,17 +174,25 @@ const MaterialsLibrary = () => {
         const descriptionMatch = material.description ? 
           material.description.toLowerCase().includes(searchTermLower) : false;
         
-        // Considerar qualquer correspondência como resultado positivo
         return titleMatch || disciplineMatch || descriptionMatch;
       });
     }
     
-    // Ordenação fixa - mais recentes primeiro
-    return filtered.sort((a, b) => {
+    // Ordenar por data (mais recentes primeiro)
+    filtered = filtered.sort((a, b) => {
       const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      return dateB - dateA; // Ordem decrescente (mais recentes primeiro)
+      return dateB - dateA;
     });
+    
+    // Atualizar o estado dos materiais filtrados
+    setFilteredMaterials(filtered);
+    
+  }, [materials, searchTerm, selectedFilters]); // Este useEffect será executado sempre que qualquer um destes valores mudar
+
+  // Função para pesquisar e filtrar materiais
+  const getFilteredMaterials = () => {
+    return filteredMaterials;
   };
 
   const handleViewDetail = async (material) => {
