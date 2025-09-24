@@ -179,15 +179,18 @@ const MaterialsLibrary = () => {
 
   // Função auxiliar para ordenação
   const sortMaterials = (a, b) => {
-    // Garantir que temos valores de data válidos para comparação
-    const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-    const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-    
     if (sortOption === 'recent') {
-      return dateB - dateA; // Mais recentes primeiro (ordem decrescente)
-    } else if (sortOption === 'oldest') {
-      return dateA - dateB; // Mais antigos primeiro (ordem crescente)
-    } else if (sortOption === 'alphabetical') {
+      // Garantir que as datas são tratadas corretamente
+      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return dateB - dateA; // Ordem decrescente (mais recentes primeiro)
+    } 
+    else if (sortOption === 'oldest') {
+      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return dateA - dateB; // Ordem crescente (mais antigos primeiro)
+    } 
+    else if (sortOption === 'alphabetical') {
       return (a.title || '').localeCompare(b.title || '');
     }
     return 0;
@@ -360,21 +363,18 @@ const MaterialsLibrary = () => {
     );
   };
 
-  // Modifique a função onde você altera o estado dos filtros
+  // Substitua a função handleFilterChange atual por esta versão:
   const handleFilterChange = (filterType, value) => {
-    setSelectedFilters(prev => {
-      const newFilters = { ...prev, [filterType]: value };
-      // Force o re-render explicitamente
-      setFilterChanged(!filterChanged);
-      return newFilters;
+    // Atualizar diretamente o estado com o novo valor
+    setSelectedFilters({
+      ...selectedFilters,
+      [filterType]: value
     });
+    
+    // Isso não é necessário, pois a alteração do estado selectedFilters
+    // já deve disparar uma renderização
+    // setFilterChanged(!filterChanged);
   };
-
-  // Adicione um useEffect para reagir às mudanças de filtro
-  useEffect(() => {
-    // Este efeito será executado toda vez que os filtros forem alterados
-    // Não é necessário fazer nada aqui, apenas forçar uma re-renderização
-  }, [selectedFilters, filterChanged]);
 
   return (
     <Container maxW="container.xl" py={8}>
