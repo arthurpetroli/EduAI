@@ -36,7 +36,8 @@ import {
   ModalFooter,
   useToast,
   Spinner,
-  Center
+  Center,
+  ButtonGroup
 } from '@chakra-ui/react';
 import { 
   FaSearch, 
@@ -178,10 +179,14 @@ const MaterialsLibrary = () => {
 
   // Função auxiliar para ordenação
   const sortMaterials = (a, b) => {
+    // Garantir que temos valores de data válidos para comparação
+    const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+    const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+    
     if (sortOption === 'recent') {
-      return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+      return dateB - dateA; // Mais recentes primeiro (ordem decrescente)
     } else if (sortOption === 'oldest') {
-      return new Date(a.updatedAt || a.createdAt || 0) - new Date(b.updatedAt || b.createdAt || 0);
+      return dateA - dateB; // Mais antigos primeiro (ordem crescente)
     } else if (sortOption === 'alphabetical') {
       return (a.title || '').localeCompare(b.title || '');
     }
@@ -472,17 +477,33 @@ const MaterialsLibrary = () => {
         </InputGroup>
         
         <Flex wrap="wrap" gap={4}>
-          <Select 
-            placeholder="Tipo"
-            value={selectedFilters.type}
-            onChange={(e) => handleFilterChange('type', e.target.value)}
-            maxW="200px"
-          >
-            <option value="all">Todos os tipos</option>
-            <option value="material">Materiais Didáticos</option>
-            <option value="exercise">Exercícios</option>
-            <option value="assessment">Avaliações</option>
-          </Select>
+          {/* Substitua o Select de tipos por este conjunto de botões */}
+          <ButtonGroup size="md" isAttached variant="outline" mr={4} mb={{ base: 4, md: 0 }}>
+            <Button 
+              colorScheme={selectedFilters.type === 'all' ? 'blue' : 'gray'}
+              onClick={() => handleFilterChange('type', 'all')}
+            >
+              Todos os tipos
+            </Button>
+            <Button 
+              colorScheme={selectedFilters.type === 'material' ? 'blue' : 'gray'}
+              onClick={() => handleFilterChange('type', 'material')}
+            >
+              Materiais Didáticos
+            </Button>
+            <Button 
+              colorScheme={selectedFilters.type === 'exercise' ? 'blue' : 'gray'}
+              onClick={() => handleFilterChange('type', 'exercise')}
+            >
+              Exercícios
+            </Button>
+            <Button 
+              colorScheme={selectedFilters.type === 'assessment' ? 'blue' : 'gray'} 
+              onClick={() => handleFilterChange('type', 'assessment')}
+            >
+              Avaliações
+            </Button>
+          </ButtonGroup>
           
           <Select 
             placeholder="Ordenar por"
