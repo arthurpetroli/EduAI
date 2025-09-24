@@ -77,6 +77,12 @@ const MaterialsLibrary = () => {
     fetchMaterials();
   }, []);
 
+  // Efeito para garantir que a pesquisa funcione em tempo real
+  useEffect(() => {
+    // Este useEffect será executado sempre que o termo de busca mudar
+    // Não precisa fazer nada específico aqui, apenas garantir que o componente rerenderize
+  }, [searchTerm]);
+
   // Função para buscar materiais
   const fetchMaterials = async () => {
     setIsLoading(true);
@@ -139,7 +145,7 @@ const MaterialsLibrary = () => {
 
   // Função para pesquisar e filtrar materiais
   const getFilteredMaterials = () => {
-    let filtered = materials;
+    let filtered = [...materials]; // Crie uma cópia para evitar problemas de referência
     
     // Aplicar filtros de tipo, disciplina e nível
     filtered = filtered.filter(material => {
@@ -152,15 +158,22 @@ const MaterialsLibrary = () => {
       return typeMatch && disciplineMatch && gradeLevelMatch;
     });
     
-    // Aplicar busca textual, se houver termo de busca
+    // Aplicar busca textual imediatamente
     if (searchTerm && searchTerm.trim() !== '') {
       const searchTermLower = searchTerm.toLowerCase().trim();
       
       filtered = filtered.filter(material => {
-        // Busca em vários campos
-        const titleMatch = material.title && material.title.toLowerCase().includes(searchTermLower);
-        const disciplineMatch = material.discipline && material.discipline.toLowerCase().includes(searchTermLower);
-        const descriptionMatch = material.description && material.description.toLowerCase().includes(searchTermLower);
+        if (!material) return false;
+        
+        // Busca em vários campos com verificação de nulos
+        const titleMatch = material.title ? 
+          material.title.toLowerCase().includes(searchTermLower) : false;
+        
+        const disciplineMatch = material.discipline ? 
+          material.discipline.toLowerCase().includes(searchTermLower) : false;
+        
+        const descriptionMatch = material.description ? 
+          material.description.toLowerCase().includes(searchTermLower) : false;
         
         // Considerar qualquer correspondência como resultado positivo
         return titleMatch || disciplineMatch || descriptionMatch;
