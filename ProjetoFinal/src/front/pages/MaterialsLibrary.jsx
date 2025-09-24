@@ -52,6 +52,7 @@ import {
   FaEye,
   FaPlus 
 } from 'react-icons/fa';
+import { FiInfo } from 'react-icons/fi';
 import { Link as RouterLink } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import api from '../services/api';
@@ -501,7 +502,7 @@ const MaterialsLibrary = () => {
 
       {/* Busca e filtros */}
       <Box bg="white" p={4} borderRadius="lg" boxShadow="md" mb={6}>
-        <InputGroup mb={4}>
+        <InputGroup mb={2}>
           <InputLeftElement pointerEvents="none">
             <Icon as={FaSearch} color="gray.300" />
           </InputLeftElement>
@@ -548,6 +549,12 @@ const MaterialsLibrary = () => {
           </InputRightElement>
         </InputGroup>
         
+        {/* Adicione esta mensagem de orientação */}
+        <Text fontSize="xs" color="gray.500" mb={4} ml={1}>
+          <Icon as={FiInfo} size="xs" mr={1} />
+          Pressione Enter ou clique em "Buscar" para realizar a pesquisa
+        </Text>
+
         <Flex wrap="wrap" gap={4}>
           {/* Substitua o Select de tipos por este conjunto de botões */}
           <ButtonGroup size="md" isAttached variant="outline" mr={4} mb={{ base: 4, md: 0 }}>
