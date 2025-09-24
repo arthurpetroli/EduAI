@@ -463,12 +463,75 @@ const MaterialsLibrary = () => {
           <Input 
             placeholder="Buscar materiais, exercícios ou avaliações..." 
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setSearchTerm(newValue);
+              
+              // Forçar uma atualização imediata dos materiais filtrados
+              const searchTermLower = newValue.toLowerCase().trim();
+              
+              let filtered = [...materials].filter(material => {
+                const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
+                const disciplineMatch = selectedFilters.discipline === 'all' || 
+                  material.discipline === selectedFilters.discipline;
+                const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
+                  material.gradeLevel === selectedFilters.gradeLevel;
+                
+                return typeMatch && disciplineMatch && gradeLevelMatch;
+              });
+              
+              // Aplicar busca textual imediatamente
+              if (newValue && newValue.trim() !== '') {
+                filtered = filtered.filter(material => {
+                  if (!material) return false;
+                  
+                  const titleMatch = material.title ? 
+                    material.title.toLowerCase().includes(searchTermLower) : false;
+                  
+                  const disciplineMatch = material.discipline ? 
+                    material.discipline.toLowerCase().includes(searchTermLower) : false;
+                  
+                  const descriptionMatch = material.description ? 
+                    material.description.toLowerCase().includes(searchTermLower) : false;
+                  
+                  return titleMatch || disciplineMatch || descriptionMatch;
+                });
+              }
+              
+              // Ordenar por data
+              filtered = filtered.sort((a, b) => {
+                const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                return dateB - dateA;
+              });
+              
+              setFilteredMaterials(filtered);
+            }}
             pr="4.5rem"
           />
           {searchTerm && (
             <InputRightElement width="4.5rem">
-              <Button h="1.75rem" size="sm" onClick={() => setSearchTerm('')}>
+              <Button h="1.75rem" size="sm" onClick={() => {
+                setSearchTerm('');
+                // Redefinir materiais filtrados quando limpar
+                let filtered = [...materials].filter(material => {
+                  const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
+                  const disciplineMatch = selectedFilters.discipline === 'all' || 
+                    material.discipline === selectedFilters.discipline;
+                  const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
+                    material.gradeLevel === selectedFilters.gradeLevel;
+                  
+                  return typeMatch && disciplineMatch && gradeLevelMatch;
+                });
+                
+                filtered = filtered.sort((a, b) => {
+                  const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                  const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                  return dateB - dateA;
+                });
+                
+                setFilteredMaterials(filtered);
+              }}>
                 Limpar
               </Button>
             </InputRightElement>
