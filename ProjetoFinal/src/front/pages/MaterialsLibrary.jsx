@@ -72,6 +72,7 @@ const MaterialsLibrary = () => {
   const [materials, setMaterials] = useState([]);
   const [filteredMaterials, setFilteredMaterials] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [updateKey, setUpdateKey] = useState(0); // Estado para forçar atualizações
 
   // Carregar materiais ao montar o componente
   useEffect(() => {
@@ -417,8 +418,9 @@ const MaterialsLibrary = () => {
       return dateB - dateA;
     });
     
-    // Atualizar o estado dos materiais filtrados
+    // Atualizar o estado dos materiais filtrados e forçar renderização
     setFilteredMaterials(filtered);
+    setUpdateKey(prev => prev + 1); // Força renderização
   };
 
   return (
@@ -516,6 +518,8 @@ const MaterialsLibrary = () => {
                 e.preventDefault();
                 setSearchTerm(tempSearchTerm);
                 applyFilters(tempSearchTerm);
+                // Forçamos um foco em outro elemento para garantir que o input não capture o foco
+                e.target.blur();
               }
             }}
             pr="4.5rem"
@@ -529,7 +533,22 @@ const MaterialsLibrary = () => {
                 onClick={() => {
                   setTempSearchTerm('');
                   setSearchTerm('');
-                  applyFilters('');
+                  // Força limpeza imediata
+                  const filtered = [...materials].filter(material => {
+                    const typeMatch = selectedFilters.type === 'all' || material.type === selectedFilters.type;
+                    const disciplineMatch = selectedFilters.discipline === 'all' || 
+                      material.discipline === selectedFilters.discipline;
+                    const gradeLevelMatch = selectedFilters.gradeLevel === 'all' || 
+                      material.gradeLevel === selectedFilters.gradeLevel;
+                    
+                    return typeMatch && disciplineMatch && gradeLevelMatch;
+                  }).sort((a, b) => {
+                    const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                    const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                    return dateB - dateA;
+                  });
+                  setFilteredMaterials(filtered);
+                  setUpdateKey(prev => prev + 1); // Força renderização
                 }}
               >
                 Limpar
@@ -587,8 +606,9 @@ const MaterialsLibrary = () => {
       </Box>
 
       {/* Status da busca */}
-      <Text color="gray.600" mb={4}>
-        {getFilteredMaterials().length} {getFilteredMaterials().length === 1 ? 'item' : 'itens'} encontrados
+      <Text color="gray.600" mb={4} key={`count-${updateKey}`}>
+        {filteredMaterials.length} {filteredMaterials.length === 1 ? 'item' : 'itens'} encontrados
+        {searchTerm && <> para "<strong>{searchTerm}</strong>"</>}
       </Text>
 
       {/* Loading spinner */}
@@ -599,9 +619,9 @@ const MaterialsLibrary = () => {
       ) : (
         <>
           {/* Lista de materiais */}
-          {getFilteredMaterials().length > 0 ? (
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-              {getFilteredMaterials().map(material => {
+          {filteredMaterials.length > 0 ? (
+            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} key={`results-${updateKey}`}>
+              {filteredMaterials.map(material => {
                 const typeInfo = getTypeIcon(material.type);
                 return (
                   <Card key={material.id} border="1px" borderColor="gray.200" boxShadow="sm">
