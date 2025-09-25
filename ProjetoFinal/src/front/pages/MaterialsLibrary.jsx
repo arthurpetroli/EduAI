@@ -568,10 +568,11 @@ const MaterialsLibrary = () => {
           </InputRightElement>
         </InputGroup>
         
-        {/* Adicione esta mensagem de orientação */}
+        {/* Adicione esta mensagem de orientação com a nova instrução */}
         <Text fontSize="xs" color="gray.500" mb={4} ml={1}>
           <Icon as={FiInfo} size="xs" mr={1} />
-          Pressione Enter ou clique em "Buscar" para realizar a pesquisa
+          Pressione Enter ou clique em "Buscar" para realizar a pesquisa. 
+          Para voltar com todos os dados, deixe o campo de pesquisa vazio e clique em Enter.
         </Text>
 
         <Flex wrap="wrap" gap={4}>
