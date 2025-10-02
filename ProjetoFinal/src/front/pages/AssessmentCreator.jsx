@@ -359,15 +359,6 @@ const AssessmentCreator = () => {
           <CardBody>
             <form onSubmit={handleSubmit}>
               <Stack spacing={6}>
-                <FormControl id="topico" isRequired>
-                  <FormLabel>Tópico</FormLabel>
-                  <Input 
-                    name="topico"
-                    placeholder="Ex: Revolução Francesa"
-                    value={formData.topico}
-                    onChange={handleChange}
-                  />
-                </FormControl>
                 
                 <FormControl id="materia" isRequired>
                   <FormLabel>Matéria</FormLabel>
@@ -379,6 +370,16 @@ const AssessmentCreator = () => {
                     onChange={handleChange}
                     placeholder="Ex: História, Matemática, Química, etc."
                     required
+                  />
+                </FormControl>
+                
+                <FormControl id="topico" isRequired>
+                  <FormLabel>Tópico</FormLabel>
+                  <Input 
+                    name="topico"
+                    placeholder="Ex: Revolução Francesa"
+                    value={formData.topico}
+                    onChange={handleChange}
                   />
                 </FormControl>
                 

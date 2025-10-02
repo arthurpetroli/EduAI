@@ -216,15 +216,6 @@ const ExerciseBuilder = () => {
           <CardBody>
             <form onSubmit={handleSubmit}>
               <Stack spacing={4}>
-                <FormControl id="topico" isRequired>
-                  <FormLabel>Tópico</FormLabel>
-                  <Input 
-                    name="topico"
-                    placeholder="Ex: Equações do 2º grau"
-                    value={formData.topico}
-                    onChange={handleChange}
-                  />
-                </FormControl>
                 
                 <FormControl id="materia" isRequired>
                   <FormLabel>Matéria</FormLabel>
@@ -236,6 +227,16 @@ const ExerciseBuilder = () => {
                     onChange={handleChange}
                     placeholder="Ex: Matemática, História, Física, etc."
                     required
+                  />
+                </FormControl>
+                
+                <FormControl id="topico" isRequired>
+                  <FormLabel>Tópico</FormLabel>
+                  <Input 
+                    name="topico"
+                    placeholder="Ex: Equações do 2º grau"
+                    value={formData.topico}
+                    onChange={handleChange}
                   />
                 </FormControl>
                 

@@ -212,15 +212,6 @@ const MaterialGenerator = () => {
           <CardBody>
             <form onSubmit={handleSubmit}>
               <Stack spacing={4}>
-                <FormControl id="topico" isRequired>
-                  <FormLabel>Tópico</FormLabel>
-                  <Input 
-                    name="topico"
-                    placeholder="Ex: Equações do 2º grau"
-                    value={formData.topico}
-                    onChange={handleChange}
-                  />
-                </FormControl>
                 
                 <FormControl id="materia" isRequired>
                   <FormLabel>Matéria</FormLabel>
@@ -232,6 +223,16 @@ const MaterialGenerator = () => {
                     onChange={handleChange}
                     placeholder="Ex: Matemática, História, Física, Programação, etc."
                     required
+                  />
+                </FormControl>
+                
+                <FormControl id="topico" isRequired>
+                  <FormLabel>Tópico</FormLabel>
+                  <Input 
+                    name="topico"
+                    placeholder="Ex: Equações do 2º grau"
+                    value={formData.topico}
+                    onChange={handleChange}
                   />
                 </FormControl>
                 
