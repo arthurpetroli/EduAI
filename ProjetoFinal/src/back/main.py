@@ -50,7 +50,7 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 def get_generative_model():
-    return genai.GenerativeModel('gemini-1.5-flash')
+    return genai.GenerativeModel('gemini-2.5-flash')
 
 app.include_router(auth_router, prefix="/auth")
 
