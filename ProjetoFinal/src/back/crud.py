@@ -30,7 +30,7 @@ def create_lista_exercicios(db: Session, request, dados_ia: str, user_id: int = 
         # Criar título combinando matéria e tópico
         titulo = f"{request.materia}: {request.topico}"
         
-        # Criar o objeto Avaliacao apenas com campos válidos no modelo
+        # Criar o objeto Avaliacao apenas com campos válidos no modelo.
         db_lista = models.Avaliacao(
             titulo=titulo,
             nivel_dificuldade=request.nivel,
