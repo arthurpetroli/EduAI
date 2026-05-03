@@ -1,8 +1,10 @@
 import os
+import time
 from fastapi import FastAPI, Depends, HTTPException, Path, Request
 from sqlalchemy.orm import Session
-import google.generativeai as genai
-from fastapi.responses import StreamingResponse, Response
+from google import genai
+from google.genai import types
+from fastapi.responses import Response
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
@@ -32,25 +34,55 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Configuração CORS corrigida
+allowed_origins = [
+    "https://edu-ai-drab.vercel.app",
+    "https://eduai-production-afcf.up.railway.app",
+]
+extra_origin = os.getenv("FRONTEND_URL")
+if extra_origin:
+    allowed_origins.append(extra_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://edu-ai-drab.vercel.app",
-        "https://eduai-production-afcf.up.railway.app"
-    ],  # Adicionar ambos os endereços
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],  # Permitir todos os cabeçalhos
+    allow_headers=["*"],
 )
 
 api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
     raise RuntimeError("A variável de ambiente GOOGLE_API_KEY não foi definida.")
-genai.configure(api_key=api_key)
 
-def get_generative_model():
-    return genai.GenerativeModel('gemini-2.5-flash')
+MODEL_NAME = "gemini-3.1-flash-lite-preview"
+gemini_client = genai.Client(api_key=api_key)
+
+def get_genai_client():
+    return gemini_client
+
+
+def generate_with_retry(client, prompt, config=None, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            return client.models.generate_content(
+                model=MODEL_NAME,
+                contents=prompt,
+                config=config,
+            )
+        except Exception as e:
+            err = str(e)
+            is_retryable = (
+                "429" in err or "quota" in err.lower() or "resource_exhausted" in err.lower()
+                or "503" in err or "unavailable" in err.lower()
+            )
+            if is_retryable and attempt < max_retries - 1:
+                wait = 2 ** attempt
+                logging.warning(f"Gemini indisponível (tentativa {attempt + 1}/{max_retries}). Aguardando {wait}s...")
+                time.sleep(wait)
+                continue
+            raise
+    raise RuntimeError("Limite de tentativas da API Gemini atingido")
+
 
 app.include_router(auth_router, prefix="/auth")
 
@@ -63,54 +95,87 @@ def read_root():
 def gerar_texto_de_apoio(
     request: schemas.GeracaoTextoRequest,
     db: Session = Depends(get_db),
-    model: genai.GenerativeModel = Depends(get_generative_model),
+    client: genai.Client = Depends(get_genai_client),
     current_user: schemas.User = Depends(get_current_active_user)
 ):
     """
     Gera um texto de apoio ou resumo sobre um tópico específico.
     """
     try:
-        # Prompt generalizado que funciona para qualquer matéria
-        prompt = f"""
-        Crie um texto de apoio didático de alta qualidade sobre '{request.topico}' na área de '{request.materia}', para estudantes de nível {request.nivel}.
-
-        **Instruções de Formatação OBRIGATÓRIAS:**
-        - Use Markdown para estruturação.
-        - Título principal: claro, conciso e envolvente.
-        - Divida o conteúdo em 4-6 seções lógicas com subtítulos ('##').
-        - Cada seção deve ter 2-3 parágrafos bem desenvolvidos (separados por linha em branco).
-        - Para conceitos-chave: use negrito ('**termo**').
-        - Para termos técnicos secundários: use itálico ('*termo*').
-        - Para enumerações ou sequências: use listas numeradas (1., 2., etc.).
-        - Para itens não sequenciais: use marcadores ('*' ou '-').
-        - Inclua no mínimo 2 exemplos práticos ou aplicações reais.
-        - Termine com uma seção de resumo que conecte todos os conceitos apresentados.
-
-        **Adaptação específica por disciplina:**
-        - **Matemática/Física/Química**: inclua pelo menos 2 fórmulas relevantes (claramente explicadas), 3 exemplos numéricos resolvidos passo a passo.
-        - **História/Geografia/Sociologia**: apresente cronologia clara, contexto histórico-social, causas e efeitos, comparações entre perspectivas diferentes.
-        - **Línguas/Literatura**: exemplos linguísticos contrastantes, explicações etimológicas, exemplos de aplicação, comparações entre regras ou estilos.
-        - **Biologia/Ciências**: analogias para conceitos abstratos, classificações hierárquicas claras, relações de causa-efeito nos sistemas estudados.
-
-        **Estrutura obrigatória:**
-        1. Introdução contextualizada (conexão com conhecimento prévio do aluno)
-        2. Fundamentação teórica (conceitos essenciais explicados de forma simples)
-        3. Aplicações práticas ou exemplos do mundo real
-        4. Casos especiais ou exceções importantes (quando aplicável)
-        5. Resumo visual ou esquemático dos principais pontos
-        6. Conexões interdisciplinares (relacionar com outros tópicos ou disciplinas)
-
-        **Adaptação por nível:**
-        - **Fundamental**: linguagem simples, analogias com cotidiano, muitos exemplos visuais.
-        - **Médio**: equilíbrio entre teoria e aplicação, maior vocabulário técnico (sempre explicado), conexões interdisciplinares.
-        - **Superior**: maior profundidade teórica, discussão de pesquisas recentes, análise crítica, bibliografias sugeridas.
-
-        O conteúdo deve ser cientificamente preciso, pedagogicamente estruturado e engajador para o nível {request.nivel}.
-        """
-        
-        response = model.generate_content(prompt)
         tema = f"{request.topico} ({request.materia} - {request.nivel})"
-        
+
+        cached = db.query(models.TextoGerado).filter(
+            models.TextoGerado.user_id == current_user.id,
+            models.TextoGerado.tema == tema
+        ).first()
+        if cached:
+            return cached
+
+        nivel_instrucao = {
+            "Fundamental": "Use linguagem simples, analogias do cotidiano e exemplos concretos. Evite jargão técnico sem explicação imediata.",
+            "Médio": "Equilibre teoria e prática. Apresente vocabulário técnico sempre acompanhado de explicação. Inclua conexões entre disciplinas.",
+            "Superior": "Adote rigor conceitual. Cite correntes teóricas ou pesquisas relevantes. Estimule leitura crítica e reflexão.",
+        }.get(request.nivel, f"Adapte ao nível {request.nivel}.")
+
+        area_instrucao = {
+            "Matemática": "Inclua ≥2 fórmulas com demonstração e ≥3 exemplos numéricos resolvidos passo a passo.",
+            "Física": "Inclua ≥2 fórmulas com demonstração e ≥3 exercícios numéricos resolvidos. Relacione com fenômenos observáveis.",
+            "Química": "Inclua ≥2 equações ou fórmulas explicadas e exemplos de reações ou cálculos estequiométricos.",
+            "História": "Organize uma linha do tempo clara. Apresente causas, consequências e múltiplas perspectivas históricas.",
+            "Geografia": "Use dados, mapas descritivos e relações entre espaço, sociedade e ambiente.",
+            "Biologia": "Use analogias para abstrações. Apresente classificações hierárquicas e relações causa-efeito nos sistemas vivos.",
+            "Literatura": "Inclua trechos ou exemplos de obras. Compare estilos, períodos ou autores.",
+            "Português": "Apresente exemplos contrastantes de uso. Explique regras com exceções e contextualização histórica da língua.",
+        }.get(request.materia, "Apresente exemplos práticos e contextualizados à disciplina.")
+
+        prompt = f"""Você é um especialista em pedagogia e em {request.materia}. Elabore um texto de apoio didático completo e aprofundado sobre "{request.topico}" para professores do ensino {request.nivel} usarem diretamente em sala de aula.
+
+NÍVEL: {nivel_instrucao}
+ÁREA: {area_instrucao}
+
+ESTRUTURA OBRIGATÓRIA em Markdown (use exatamente estes subtítulos ##):
+
+## 1. Objetivos de Aprendizagem
+Liste 3–4 objetivos claros e mensuráveis usando verbos de ação (identificar, calcular, comparar, explicar, analisar, aplicar). O que o aluno deve ser capaz de fazer ao final da aula.
+
+## 2. Introdução
+Contextualize o tema com uma situação-problema ou pergunta motivadora que desperte curiosidade. Conecte ao conhecimento prévio do aluno.
+
+## 3. Fundamentos
+Explique os conceitos essenciais com rigor; termos centrais em **negrito**, secundários em *itálico*. 2–3 parágrafos densos e estruturados.
+
+## 4. Aprofundamento
+Desenvolva o conteúdo com detalhes, dados, derivações ou análises conforme a área. Relacione subtemas entre si e mostre a lógica interna do conteúdo.
+
+## 5. Exemplos e Aplicações
+Mínimo 3 situações reais ou do cotidiano onde o conteúdo aparece. Para ciências exatas: resolva ao menos 2 problemas numéricos passo a passo com explicação de cada etapa.
+
+## 6. Erros Comuns e Pontos de Atenção
+Liste 3–5 equívocos frequentes de estudantes neste tópico. Para cada um: descreva o erro, explique por que ocorre e como corrigi-lo.
+
+## 7. Resumo
+Sintetize os pontos-chave em até 8 tópicos numerados. Inclua as definições e fórmulas mais importantes.
+
+## 8. Conexões Interdisciplinares
+Relacione com outras disciplinas, temas do currículo ou competências gerais da BNCC.
+
+## 9. Sugestões Didáticas para o Professor
+2–3 estratégias práticas de ensino para este tópico (experimento simples, dinâmica de grupo, debate, problema aberto, mapa mental, etc.). Indique o tempo estimado de cada estratégia.
+
+FORMATO:
+- Markdown estrito: ## para seções, **negrito**, *itálico*, listas `-` e `1.`
+- 2–3 parágrafos por seção, separados por linha em branco
+- Garantia absoluta de precisão factual — nenhum erro conceitual é aceitável"""
+
+        response = generate_with_retry(
+            client,
+            prompt,
+            config=types.GenerateContentConfig(
+                max_output_tokens=6144,
+                thinking_config=types.ThinkingConfig(thinking_budget=16384),
+            ),
+        )
+
         # Limpa possíveis blocos de código da resposta da IA
         cleaned_response = response.text.strip().replace("```markdown", "").replace("```", "").strip()
 
@@ -137,28 +202,81 @@ def gerar_texto_de_apoio(
 def gerar_lista_exercicios(
     request: schemas.GeracaoListaExerciciosRequest,
     db: Session = Depends(get_db),
-    model: genai.GenerativeModel = Depends(get_generative_model),
+    client: genai.Client = Depends(get_genai_client),
     current_user: schemas.User = Depends(get_current_active_user)
 ):
     """
     Gera uma lista de exercícios sobre um tópico específico.
     """
     try:
-        prompt = f"""
-        Com base no tópico '{request.topico}' da matéria de '{request.materia}' para o ensino {request.nivel}, gere {request.quantidade_exercicios} exercícios do tipo '{request.tipo_exercicio}'.
+        tipo = request.tipo_exercicio.lower()
+        if "múltipla" in tipo or "multipla" in tipo:
+            tipo_instrucao = (
+                'Todas as questões devem ser de MÚLTIPLA ESCOLHA (tipo="multipla_escolha"). '
+                '5 alternativas A–E; somente 1 correta; os 4 distratores devem ser erros conceituais plausíveis — nunca respostas óbvias ou absurdas. '
+                'resposta_correta = letra correta seguida de "—" e explicação curta de por que está correta (ex: "B — O calor específico da água é alto porque...").'
+            )
+            formato_exemplo = (
+                '{"enunciado": "[Médio] texto da questão", "tipo": "multipla_escolha", '
+                '"opcoes": {"A": "...", "B": "...", "C": "...", "D": "...", "E": "..."}, '
+                '"resposta_correta": "B — explicação de por que B é correto"}'
+            )
+        elif "dissertat" in tipo:
+            tipo_instrucao = (
+                'Todas as questões devem ser DISSERTATIVAS (tipo="dissertativa", opcoes=null). '
+                'O enunciado deve exigir análise, comparação ou aplicação — nunca apenas definição. '
+                'resposta_correta deve conter: (1) resposta modelo completa e (2) critérios de correção numerados.'
+            )
+            formato_exemplo = (
+                '{"enunciado": "[Médio] texto da questão", "tipo": "dissertativa", '
+                '"opcoes": null, "resposta_correta": "Resposta modelo: [...]. Critérios: 1) [...] 2) [...]"}'
+            )
+        else:
+            tipo_instrucao = (
+                'Alterne entre múltipla escolha e dissertativa. '
+                'Múltipla escolha: tipo="multipla_escolha", 5 alternativas A–E, distratores plausíveis, resposta_correta = "letra — explicação". '
+                'Dissertativa: tipo="dissertativa", opcoes=null, resposta_correta com resposta modelo e critérios de correção numerados.'
+            )
+            formato_exemplo = (
+                '{"enunciado": "[Fácil] texto da questão", "tipo": "multipla_escolha", '
+                '"opcoes": {"A": "...", "B": "...", "C": "...", "D": "...", "E": "..."}, '
+                '"resposta_correta": "A — explicação de por que A é correto"}'
+            )
 
-        Instruções de Formato:
-        - Sua resposta deve ser um único objeto JSON.
-        - Este objeto deve ter uma única chave: "exercicios".
-        - O valor de "exercicios" deve ser uma LISTA de objetos, onde cada objeto representa um exercício.
-        - Cada exercício DEVE ter EXATAMENTE as seguintes chaves: "enunciado", "tipo", "opcoes", "resposta_correta".
-        - O campo "opcoes" deve ser um dicionário como {{"A": "...", "B": "..."}}. Se for dissertativo, use null.
-        
-        Adapte os exercícios ao contexto da matéria '{request.materia}' e ao nível de ensino '{request.nivel}'.
-        """
-        
-        response = model.generate_content(prompt)
-        
+        prompt = f"""Você é um professor experiente de {request.materia} no ensino {request.nivel}.
+Crie {request.quantidade_exercicios} exercícios sobre "{request.topico}" com gabarito comentado.
+
+TIPO: {tipo_instrucao}
+
+DISTRIBUIÇÃO DE DIFICULDADE:
+- Prefixe cada enunciado com o nível entre colchetes: [Fácil], [Médio] ou [Difícil]
+- ~40% Fácil: aplicação direta de 1 conceito básico
+- ~40% Médio: relação entre 2 conceitos ou 2–3 passos de raciocínio
+- ~20% Difícil: integração de múltiplos conceitos; análise ou caso não trivial
+
+QUALIDADE OBRIGATÓRIA:
+- Questões devem testar compreensão, análise e aplicação — não apenas memorização
+- Enunciados claros, precisos e sem ambiguidade
+- Todas as respostas devem ser factualmente corretas
+- Vocabulário e complexidade adequados ao nível {request.nivel}
+- Para múltipla escolha: os distratores errados devem representar equívocos conceituais reais que estudantes cometem
+
+Retorne SOMENTE JSON válido, sem nenhum texto antes ou depois:
+{{
+  "exercicios": [
+    {formato_exemplo}
+  ]
+}}"""
+
+        response = generate_with_retry(
+            client,
+            prompt,
+            config=types.GenerateContentConfig(
+                max_output_tokens=6144,
+                thinking_config=types.ThinkingConfig(thinking_budget=4096),
+            ),
+        )
+
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
 
         return crud.create_lista_exercicios(
@@ -179,157 +297,89 @@ def gerar_lista_exercicios(
 def gerar_avaliacao(
     request: schemas.GeracaoAvaliacaoRequest,
     db: Session = Depends(get_db),
-    model: genai.GenerativeModel = Depends(get_generative_model),
+    client: genai.Client = Depends(get_genai_client),
     current_user: schemas.User = Depends(get_current_active_user)
 ):
     try:
-        # Ignoramos o valor de request.dificuldade e usamos a distribuição fixa
-        prompt = f"""
-        Desenvolva uma avaliação educacional completa com {request.quantidade_exercicios} questões sobre '{request.topico}' na área de '{request.materia}' para nível {request.nivel}.
+        n = request.quantidade_exercicios
+        n_facil = int(n * 0.5)
+        n_medio = int(n * 0.3)
+        n_dificil = n - n_facil - n_medio
+        n_mc = int(n * 0.8)
+        n_essay = n - n_mc
 
-        **ESTRUTURA JSON OBRIGATÓRIA:**
-        - Responda APENAS com JSON válido no formato: {{"exercicios": [array_de_questões]}}.
-        - Cada questão deve conter: "enunciado", "tipo", "opcoes" e "resposta_correta".
-        - O campo "opcoes" deve ser {{"A": "texto", "B": "texto", ...}} para múltipla escolha, ou null para dissertativas.
-        - O campo "tipo" deve ser "multipla_escolha" ou "dissertativa" conforme o tipo da questão.
+        prompt = f"""Você é um professor experiente e avaliador pedagógico de {request.materia} no ensino {request.nivel}.
+Crie uma avaliação formal com exatamente {n} questões sobre "{request.topico}" com gabarito comentado.
 
-        **DISTRIBUIÇÃO EXATA DE DIFICULDADE:**
-        - EXATAMENTE 50% das questões devem ser de NÍVEL FÁCIL: aplicação direta de conceitos básicos
-        - EXATAMENTE 30% das questões devem ser de NÍVEL MÉDIO: combinação de dois conceitos, análise mais elaborada
-        - EXATAMENTE 20% das questões devem ser de NÍVEL DIFÍCIL: integração complexa de múltiplos conceitos, casos excepcionais
+DISTRIBUIÇÃO OBRIGATÓRIA — gere exatamente {n} questões:
+- {n_facil} FÁCEIS: prefixe o enunciado com [Fácil] — aplicação direta de 1 conceito básico; vocabulário simples
+- {n_medio} MÉDIAS: prefixe com [Médio] — relação entre 2 conceitos; 2–3 passos de raciocínio
+- {n_dificil} DIFÍCEIS: prefixe com [Difícil] — múltiplos conceitos integrados; análise aprofundada; situações não triviais
 
-        **DISTRIBUIÇÃO DE TIPOS DE QUESTÕES:**
-        - EXATAMENTE 80% das questões devem ser de MÚLTIPLA ESCOLHA (tipo: "multipla_escolha")
-        - EXATAMENTE 20% das questões devem ser DISSERTATIVAS (tipo: "dissertativa")
+FORMATO DAS QUESTÕES:
+- {n_mc} de MÚLTIPLA ESCOLHA (tipo="multipla_escolha"):
+  * 5 alternativas A–E; somente 1 correta
+  * Os 4 distratores devem ser erros conceituais plausíveis que estudantes realmente cometem — nunca respostas absurdas
+  * resposta_correta = "letra — explicação objetiva de por que está correta e por que as demais não estão"
+- {n_essay} DISSERTATIVAS (tipo="dissertativa", opcoes=null):
+  * Enunciado que exija análise, comparação, aplicação ou síntese — nunca apenas definição
+  * resposta_correta deve conter: resposta modelo completa + critérios de correção numerados com pontuação sugerida
 
-        Para {request.quantidade_exercicios} questões, isso significa:
-        - {int(request.quantidade_exercicios * 0.5)} questões fáceis
-        - {int(request.quantidade_exercicios * 0.3)} questões médias
-        - {int(request.quantidade_exercicios * 0.2)} questões difíceis
-        - {int(request.quantidade_exercicios * 0.8)} questões de múltipla escolha
-        - {int(request.quantidade_exercicios * 0.2)} questões dissertativas
+Distribua as {n_essay} dissertativas proporcionalmente entre os três níveis de dificuldade.
 
-        **CARACTERÍSTICAS DAS QUESTÕES:**
-        - MÚLTIPLA ESCOLHA: 5 alternativas (A a E), apenas uma correta, distratores plausíveis
-        - DISSERTATIVAS: Enunciado claro que exija desenvolvimento do tema, sem opções (opcoes: null)
+QUALIDADE PEDAGÓGICA:
+- Todas as questões devem testar compreensão real e capacidade de aplicação — não memorização
+- Garanta precisão factual absoluta em enunciados e gabaritos
+- As questões devem ser adequadas para uma avaliação formal do nível {request.nivel}
+- Cubra diferentes aspectos e subtópicos de "{request.topico}"
 
-        **REQUISITOS POR NÍVEL:**
-        - Questões FÁCEIS: vocabulário simples, resolução direta, aplicação básica de um único conceito
-        - Questões MÉDIAS: análise de situações menos óbvias, relacionar dois conceitos, exigir 2-3 passos de raciocínio
-        - Questões DIFÍCEIS: problemas complexos, análise aprofundada, exceções às regras gerais, múltiplos conceitos interligados
+Retorne SOMENTE JSON válido, sem nenhum texto antes ou depois:
+{{
+  "exercicios": [
+    {{
+      "enunciado": "[Fácil] texto da questão de múltipla escolha",
+      "tipo": "multipla_escolha",
+      "opcoes": {{"A": "...", "B": "...", "C": "...", "D": "...", "E": "..."}},
+      "resposta_correta": "B — explicação de por que B está correto e as outras alternativas não"
+    }},
+    {{
+      "enunciado": "[Médio] texto da questão dissertativa",
+      "tipo": "dissertativa",
+      "opcoes": null,
+      "resposta_correta": "Resposta modelo: [...]. Critérios de correção: 1) [...] (X pts) 2) [...] (Y pts)"
+    }}
+  ]
+}}"""
 
-        IMPORTANTE: Distribua proporcionalmente as questões dissertativas entre os três níveis de dificuldade.
-        """
-
-        # Resto do código permanece igual
-        safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-        ]
-
-        generation_config = {
-            "temperature": 0.6,
-            "top_p": 0.8,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-        }
-
-        response = model.generate_content(
+        response = generate_with_retry(
+            client,
             prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings
+            config=types.GenerateContentConfig(
+                max_output_tokens=10240,
+                thinking_config=types.ThinkingConfig(thinking_budget=16384),
+                safety_settings=[
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_MEDIUM_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_MEDIUM_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_MEDIUM_AND_ABOVE"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_MEDIUM_AND_ABOVE"),
+                ],
+            ),
         )
 
-        # Resto do código permanece igual...
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
 
         return crud.create_lista_exercicios(
-            db=db, 
-            request=request, 
+            db=db,
+            request=request,
             dados_ia=cleaned_ia_response,
             user_id=current_user.id,
             tipo="avaliacao"
         )
-        
+
     except Exception as e:
         error_location = f"Erro em gerar_avaliacao: {str(e)}"
         logging.error(error_location, exc_info=True)
         raise HTTPException(status_code=500, detail=error_location)
-
-@app.post("/export/assessment", response_class=Response, tags=["Exportação"])
-async def export_assessment(
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_active_user)
-):
-    """
-    Exporta uma avaliação para PDF ou DOCX.
-    """
-    try:
-        # Obter dados do corpo da requisição
-        data = await request.json()
-        assessment_data = data.get("assessment")
-        export_format = data.get("format", "pdf").lower()
-        include_answers = data.get("includeAnswers", False)
-        
-        if export_format == "pdf":
-            # Usar o serviço de geração de PDF
-            file_content = export_services.generate_assessment_pdf(
-                assessment_data, 
-                include_answers
-            )
-            media_type = "application/pdf"
-            filename = f"avaliacao.pdf"
-        elif export_format == "docx":
-            # Usar o serviço de geração de DOCX
-            file_content = export_services.generate_assessment_docx(
-                assessment_data, 
-                include_answers
-            )
-            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            filename = f"avaliacao.docx"
-        else:
-            raise HTTPException(
-                status_code=400, 
-                detail="Formato de arquivo não suportado"
-            )
-            
-        # Registrar a exportação no banco de dados
-        export_record = schemas.ExportCreate(
-            user_id=current_user.id,
-            content_type="assessment",
-            export_format=export_format
-        )
-        crud.create_export_record(db=db, export_record=export_record)
-        
-        # Retornar o arquivo gerado
-        return Response(
-            content=file_content,
-            media_type=media_type,
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}"
-            }
-        )
-    except Exception as e:
-        logging.error(str(e), exc_info=True)
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Erro ao exportar avaliação: {str(e)}"
-        )
 
 @app.middleware("http")
 async def log_requests(request, call_next):
@@ -584,13 +634,6 @@ async def exportar_texto(
                 detail="Formato de arquivo não suportado. Use 'pdf' ou 'docx'."
             )
 
-        # Registrar a exportação no banco de dados
-        try:
-            crud.register_export(db, current_user.id, "texto", formato.lower())
-        except Exception as e:
-            print(f"Erro ao registrar exportação: {e}")
-            
-        # Retornar o arquivo gerado
         return Response(
             content=file_content.getvalue(),
             media_type=media_type,
@@ -648,13 +691,6 @@ async def exportar_lista_exercicios(
                 detail="Formato de arquivo não suportado. Use 'pdf' ou 'docx'."
             )
 
-        # Registrar a exportação no banco de dados
-        try:
-            crud.register_export(db, current_user.id, "exercicio", formato.lower())
-        except Exception as e:
-            print(f"Erro ao registrar exportação: {e}")
-            
-        # Retornar o arquivo gerado
         return Response(
             content=file_content.getvalue() if hasattr(file_content, 'getvalue') else file_content.read(),
             media_type=media_type,
@@ -702,9 +738,6 @@ def atualizar_material(
     if material_update.conteudo is not None:
         material.conteudo = material_update.conteudo
     
-    # Atualizar a data de modificação
-    material.data_atualizacao = datetime.now()
-    
     db.commit()
     db.refresh(material)
     return material
@@ -749,98 +782,3 @@ def visualizar_lista_exercicios(
         raise HTTPException(status_code=403, detail="Acesso não autorizado a este material")
     
     return lista
-
-@app.post("/avaliacoes", response_model=schemas.ListaExercicios, tags=["Geração"])
-def gerar_avaliacao(
-    request: schemas.GeracaoAvaliacaoRequest,
-    db: Session = Depends(get_db),
-    model: genai.GenerativeModel = Depends(get_generative_model),
-    current_user: schemas.User = Depends(get_current_active_user)
-):
-    try:
-        # Ignoramos o valor de request.dificuldade e usamos a distribuição fixa
-        prompt = f"""
-        Desenvolva uma avaliação educacional completa com {request.quantidade_exercicios} questões sobre '{request.topico}' na área de '{request.materia}' para nível {request.nivel}.
-
-        **ESTRUTURA JSON OBRIGATÓRIA:**
-        - Responda APENAS com JSON válido no formato: {{"exercicios": [array_de_questões]}}.
-        - Cada questão deve conter: "enunciado", "tipo", "opcoes" e "resposta_correta".
-        - O campo "opcoes" deve ser {{"A": "texto", "B": "texto", ...}} para múltipla escolha, ou null para dissertativas.
-        - O campo "tipo" deve ser "multipla_escolha" ou "dissertativa" conforme o tipo da questão.
-
-        **DISTRIBUIÇÃO EXATA DE DIFICULDADE:**
-        - EXATAMENTE 50% das questões devem ser de NÍVEL FÁCIL: aplicação direta de conceitos básicos
-        - EXATAMENTE 30% das questões devem ser de NÍVEL MÉDIO: combinação de dois conceitos, análise mais elaborada
-        - EXATAMENTE 20% das questões devem ser de NÍVEL DIFÍCIL: integração complexa de múltiplos conceitos, casos excepcionais
-
-        **DISTRIBUIÇÃO DE TIPOS DE QUESTÕES:**
-        - EXATAMENTE 80% das questões devem ser de MÚLTIPLA ESCOLHA (tipo: "multipla_escolha")
-        - EXATAMENTE 20% das questões devem ser DISSERTATIVAS (tipo: "dissertativa")
-
-        Para {request.quantidade_exercicios} questões, isso significa:
-        - {int(request.quantidade_exercicios * 0.5)} questões fáceis
-        - {int(request.quantidade_exercicios * 0.3)} questões médias
-        - {int(request.quantidade_exercicios * 0.2)} questões difíceis
-        - {int(request.quantidade_exercicios * 0.8)} questões de múltipla escolha
-        - {int(request.quantidade_exercicios * 0.2)} questões dissertativas
-
-        **CARACTERÍSTICAS DAS QUESTÕES:**
-        - MÚLTIPLA ESCOLHA: 5 alternativas (A a E), apenas uma correta, distratores plausíveis
-        - DISSERTATIVAS: Enunciado claro que exija desenvolvimento do tema, sem opções (opcoes: null)
-
-        **REQUISITOS POR NÍVEL:**
-        - Questões FÁCEIS: vocabulário simples, resolução direta, aplicação básica de um único conceito
-        - Questões MÉDIAS: análise de situações menos óbvias, relacionar dois conceitos, exigir 2-3 passos de raciocínio
-        - Questões DIFÍCEIS: problemas complexos, análise aprofundada, exceções às regras gerais, múltiplos conceitos interligados
-
-        IMPORTANTE: Distribua proporcionalmente as questões dissertativas entre os três níveis de dificuldade.
-        """
-
-        # Resto do código permanece igual
-        safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-            },
-        ]
-
-        generation_config = {
-            "temperature": 0.6,
-            "top_p": 0.8,
-            "top_k": 40,
-            "max_output_tokens": 8192,
-        }
-
-        response = model.generate_content(
-            prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings
-        )
-
-        # Resto do código permanece igual...
-        cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
-
-        return crud.create_lista_exercicios(
-            db=db, 
-            request=request, 
-            dados_ia=cleaned_ia_response,
-            user_id=current_user.id,
-            tipo="avaliacao"
-        )
-        
-    except Exception as e:
-        error_location = f"Erro em gerar_avaliacao: {str(e)}"
-        logging.error(error_location, exc_info=True)
-        raise HTTPException(status_code=500, detail=error_location)

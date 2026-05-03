@@ -7,7 +7,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Obter URL de conexão do ambiente
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:QElEUUyQpnwAcNAYUINtWQFaJHyePFHW@yamabiko.proxy.rlwy.net:35449/railway")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("A variável de ambiente DATABASE_URL não foi definida.")
 
 # Configuração específica para PostgreSQL
 if DATABASE_URL.startswith("postgresql"):

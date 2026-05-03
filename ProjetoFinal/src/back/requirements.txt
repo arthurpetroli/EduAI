@@ -8,8 +8,7 @@ pytest
 httpx
 python-jose
 passlib[bcrypt]
-axios
-google.generativeai
+google-genai
 reportlab
 python-docx
 python-multipart

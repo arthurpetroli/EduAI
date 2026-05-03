@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://eduai-production-afcf.up.railway.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://eduai-production-afcf.up.railway.app';
 
 const materialsService = {
   // Buscar todos os materiais do usuário

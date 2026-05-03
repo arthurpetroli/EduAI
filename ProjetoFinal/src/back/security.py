@@ -16,7 +16,7 @@ if not SECRET_KEY:
     raise ValueError("A variável de ambiente SECRET_KEY não foi definida. Crie um arquivo .env ou exporte a variável.")
     
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30  
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 horas
 
 def verify_password(plain_password, hashed_password):
     # Garantir que a senha não exceda 72 bytes (limite do bcrypt)
@@ -63,8 +63,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        # Aumentar para 24 horas em vez de 30 minutos
-        expire = datetime.now(timezone.utc) + timedelta(hours=24)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

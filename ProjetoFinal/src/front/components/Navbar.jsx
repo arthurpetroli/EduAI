@@ -238,9 +238,12 @@ const DesktopSubNav = ({ label, href, subLabel }) => {
 };
 
 const MobileNav = ({ isLoggedIn, handleLogout }) => {
+  const bgColor = useColorModeValue('white', 'gray.800');
+  const sairColor = useColorModeValue('gray.600', 'gray.200');
+
   return (
     <Stack
-      bg={useColorModeValue('white', 'gray.800')}
+      bg={bgColor}
       p={4}
       display={{ md: 'none' }}>
       {NAV_ITEMS.filter(item => !item.authRequired || isLoggedIn).map((navItem) => (
@@ -253,7 +256,7 @@ const MobileNav = ({ isLoggedIn, handleLogout }) => {
             p={2}
             fontSize="md"
             fontWeight={500}
-            color={useColorModeValue('gray.600', 'gray.200')}>
+            color={sairColor}>
             Sair
           </Flex>
         </Box>

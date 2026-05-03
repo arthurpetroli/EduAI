@@ -24,6 +24,8 @@ class TextoGeradoCreate(TextoGeradoBase):
 class TextoGerado(TextoGeradoBase):
     id: int
     data_criacao: datetime
+    materia: Optional[str] = None
+    nivel: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 class ExercicioBase(BaseModel):
@@ -50,6 +52,7 @@ class ExercicioSimples(ExercicioBase):
 class ListaExercicios(ListaExerciciosBase):
     id: int
     data_criacao: datetime
+    tipo: Optional[str] = None
     exercicios: List[ExercicioSimples] = []
     model_config = ConfigDict(from_attributes=True)
 
