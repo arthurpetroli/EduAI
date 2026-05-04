@@ -10,11 +10,6 @@ import {
   Collapse,
   Icon,
   Link,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  useColorModeValue,
-  useBreakpointValue,
   useDisclosure,
   Avatar,
   Menu,
@@ -22,246 +17,319 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
-  Image
+  Image,
+  HStack,
 } from '@chakra-ui/react';
 import {
   HamburgerIcon,
   CloseIcon,
   ChevronDownIcon,
-  ChevronRightIcon,
 } from '@chakra-ui/icons';
-// Modificar o import do logo
 import logo from '../assets/logo(1).svg';
+
+const GLASS_BG = 'rgba(10, 10, 11, 0.88)';
+const GLASS_BORDER = 'rgba(255, 255, 255, 0.07)';
+const TEXT_MUTED = 'rgba(255,255,255,0.55)';
+const TEXT_DEFAULT = 'rgba(255,255,255,0.85)';
+const TEXT_HOVER = '#ffffff';
+const BRAND = '#818CF8';
 
 const Navbar = ({ isLoggedIn, handleLogout, userProfileImage, userData }) => {
   const { isOpen, onToggle } = useDisclosure();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
-    <Box>
+    <>
+    {/* Backdrop overlay quando o menu dropdown está aberto */}
+    {dropdownOpen && (
+      <Box
+        position="fixed"
+        inset={0}
+        bg="rgba(0,0,0,0.55)"
+        backdropFilter="blur(3px)"
+        zIndex={99}
+        onClick={() => setDropdownOpen(false)}
+        transition="opacity 0.2s"
+      />
+    )}
+    <Box
+      position="sticky"
+      top={0}
+      zIndex={100}
+      bg={GLASS_BG}
+      backdropFilter="blur(20px)"
+      borderBottom="1px solid"
+      borderColor={GLASS_BORDER}
+      style={{ WebkitBackdropFilter: 'blur(20px)' }}
+    >
       <Flex
-        bg={useColorModeValue('white', 'gray.800')}
-        color={useColorModeValue('gray.600', 'white')}
-        minH={'60px'}
-        py={{ base: 2 }}
+        maxW="container.xl"
+        mx="auto"
         px={{ base: 4, md: 8 }}
-        borderBottom={1}
-        borderStyle={'solid'}
-        borderColor={useColorModeValue('gray.200', 'gray.900')}
-        align={'center'}
-        justify={'space-between'}
-        width="100%"
+        h="64px"
+        align="center"
+        justify="space-between"
       >
-        {/* Logo e links de navegação juntos à esquerda */}
-        <Flex align="center" flex={1}>
-          <RouterLink to="/">
-            <Flex align="center" mr={8}>
-              {/* Modificar o componente de imagem */}
-              <Image src={logo} alt="EduAI Logo" boxSize="40px" mr={2} />
-              <Text
-                fontFamily={'heading'}
-                color={useColorModeValue('gray.800', 'white')}
-                fontWeight="bold"
-                fontSize="lg"
-              >
-                EduAI
-              </Text>
-            </Flex>
-          </RouterLink>
-          
-          {/* Links de navegação ao lado do logo */}
-          <Flex display={{ base: 'none', md: 'flex' }}>
-            <DesktopNav isLoggedIn={isLoggedIn} />
-          </Flex>
-        </Flex>
+        {/* Logo */}
+        <RouterLink to="/">
+          <HStack spacing={2.5}>
+            <Image src={logo} alt="EduAI" boxSize="32px" />
+            <Text
+              fontWeight="800"
+              fontSize="lg"
+              letterSpacing="-0.03em"
+              color="white"
+              lineHeight="1"
+            >
+              Edu<Box as="span" color={BRAND}>AI</Box>
+            </Text>
+          </HStack>
+        </RouterLink>
 
-        {/* IconButton para menu mobile */}
-        <IconButton
-          display={{ base: 'flex', md: 'none' }}
-          onClick={onToggle}
-          icon={
-            isOpen ? <CloseIcon w={3} h={3} /> : <HamburgerIcon w={5} h={5} />
-          }
-          variant={'ghost'}
-          aria-label={'Toggle Navigation'}
-        />
+        {/* Desktop nav links */}
+        <HStack spacing={1} display={{ base: 'none', md: 'flex' }}>
+          <DesktopNav isLoggedIn={isLoggedIn} onDropdownChange={setDropdownOpen} />
+        </HStack>
 
-        {/* Avatar ou botões de login à direita */}
-        <Stack
-          direction={'row'}
-          spacing={6}
-          flex="0 0 auto"
-        >
+        {/* Right side */}
+        <HStack spacing={3} display={{ base: 'none', md: 'flex' }}>
           {isLoggedIn ? (
             <Menu>
               <MenuButton
                 as={Button}
-                rounded={'full'}
-                variant={'link'}
-                cursor={'pointer'}
-                minW={0}>
+                variant="unstyled"
+                cursor="pointer"
+                display="flex"
+                alignItems="center"
+              >
                 <Avatar
-                  size={'sm'}
+                  size="sm"
                   src={userProfileImage || undefined}
-                  name={userData || "U"} // Se userData estiver vazio, usar a primeira letra do usuário
-                  bg="teal.500" // Cor igual à do seu perfil
+                  name={userData || 'U'}
+                  bg="brand.500"
                   color="white"
+                  boxShadow="0 0 12px rgba(99,102,241,0.5)"
                 />
               </MenuButton>
-              <MenuList>
-                <MenuItem as={RouterLink} to="/profile">Meu Perfil</MenuItem>
-                <MenuItem as={RouterLink} to="/dashboard">Dashboard</MenuItem>
-                <MenuItem as={RouterLink} to="/library">Meus Materiais</MenuItem>
-                <MenuDivider />
-                <MenuItem onClick={handleLogout}>Sair</MenuItem>
+              <MenuList
+                bg="#18181b"
+                border="1px solid"
+                borderColor={GLASS_BORDER}
+                boxShadow="0 20px 40px rgba(0,0,0,0.5)"
+                borderRadius="xl"
+                py={2}
+              >
+                <Box px={4} py={2} borderBottom="1px solid" borderColor={GLASS_BORDER}>
+                  <Text color="white" fontWeight="600" fontSize="sm">{userData || 'Professor'}</Text>
+                  <Text color={TEXT_MUTED} fontSize="xs">Conta EduAI</Text>
+                </Box>
+                <MenuItem
+                  as={RouterLink} to="/profile"
+                  bg="transparent" color={TEXT_DEFAULT} fontSize="sm"
+                  _hover={{ bg: 'rgba(99,102,241,0.15)', color: 'white' }}
+                >
+                  Meu Perfil
+                </MenuItem>
+                <MenuItem
+                  as={RouterLink} to="/dashboard"
+                  bg="transparent" color={TEXT_DEFAULT} fontSize="sm"
+                  _hover={{ bg: 'rgba(99,102,241,0.15)', color: 'white' }}
+                >
+                  Dashboard
+                </MenuItem>
+                <MenuItem
+                  as={RouterLink} to="/library"
+                  bg="transparent" color={TEXT_DEFAULT} fontSize="sm"
+                  _hover={{ bg: 'rgba(99,102,241,0.15)', color: 'white' }}
+                >
+                  Meus Materiais
+                </MenuItem>
+                <MenuDivider borderColor={GLASS_BORDER} />
+                <MenuItem
+                  onClick={handleLogout}
+                  bg="transparent" color="red.400" fontSize="sm"
+                  _hover={{ bg: 'rgba(239,68,68,0.1)', color: 'red.300' }}
+                >
+                  Sair
+                </MenuItem>
               </MenuList>
             </Menu>
           ) : (
-            <Stack
-              direction={'row'}
-              spacing={6}
-              justify={'flex-end'}
-            >
+            <HStack spacing={2}>
               <Button
                 as={RouterLink}
-                fontSize={'sm'}
-                fontWeight={400}
-                variant={'link'}
-                to={'/login'}>
+                to="/login"
+                variant="ghost"
+                size="sm"
+                color={TEXT_MUTED}
+                fontWeight="500"
+                _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+              >
                 Entrar
               </Button>
               <Button
                 as={RouterLink}
-                display={{ base: 'none', md: 'inline-flex' }}
-                fontSize={'sm'}
-                fontWeight={600}
-                color={'white'}
-                bg={'brand.500'}
-                to={'/register'}
-                _hover={{
-                  bg: 'brand.400',
-                }}>
-                Cadastrar
+                to="/register"
+                size="sm"
+                bg="brand.500"
+                color="white"
+                fontWeight="600"
+                _hover={{ bg: 'brand.400', boxShadow: '0 0 16px rgba(99,102,241,0.5)' }}
+              >
+                Começar grátis
               </Button>
-            </Stack>
+            </HStack>
           )}
-        </Stack>
+        </HStack>
+
+        {/* Mobile hamburger */}
+        <IconButton
+          display={{ base: 'flex', md: 'none' }}
+          onClick={onToggle}
+          icon={isOpen ? <CloseIcon w={3} h={3} /> : <HamburgerIcon w={5} h={5} />}
+          variant="ghost"
+          color="white"
+          _hover={{ bg: 'whiteAlpha.100' }}
+          aria-label="Toggle Navigation"
+        />
       </Flex>
 
+      {/* Mobile menu */}
       <Collapse in={isOpen} animateOpacity>
         <MobileNav isLoggedIn={isLoggedIn} handleLogout={handleLogout} />
       </Collapse>
     </Box>
-  );
-}
-
-const DesktopNav = ({ isLoggedIn }) => {
-  const linkColor = useColorModeValue('gray.600', 'gray.200');
-  const linkHoverColor = useColorModeValue('gray.800', 'white');
-  const popoverContentBgColor = useColorModeValue('white', 'gray.800');
-
-  return (
-    <Stack direction={'row'} spacing={4}>
-      {NAV_ITEMS.filter(item => !item.authRequired || isLoggedIn).map((navItem) => (
-        <Box key={navItem.label}>
-          <Popover trigger={'hover'} placement={'bottom-start'}>
-            <PopoverTrigger>
-              <Link
-                as={RouterLink}
-                p={2}
-                to={navItem.href ?? '#'}
-                fontSize={'sm'}
-                fontWeight={500}
-                color={linkColor}
-                _hover={{
-                  textDecoration: 'none',
-                  color: linkHoverColor,
-                }}>
-                {navItem.label}
-              </Link>
-            </PopoverTrigger>
-
-            {navItem.children && (
-              <PopoverContent
-                border={0}
-                boxShadow={'xl'}
-                bg={popoverContentBgColor}
-                p={4}
-                rounded={'xl'}
-                minW={'sm'}>
-                <Stack>
-                  {navItem.children.map((child) => (
-                    <DesktopSubNav key={child.label} {...child} />
-                  ))}
-                </Stack>
-              </PopoverContent>
-            )}
-          </Popover>
-        </Box>
-      ))}
-    </Stack>
+    </>
   );
 };
 
-const DesktopSubNav = ({ label, href, subLabel }) => {
+const DesktopNav = ({ isLoggedIn, onDropdownChange }) => {
   return (
-    <Link
-      as={RouterLink}
-      to={href}
-      role={'group'}
-      display={'block'}
-      p={2}
-      rounded={'md'}
-      _hover={{ bg: useColorModeValue('brand.50', 'gray.900') }}>
-      <Stack direction={'row'} align={'center'}>
-        <Box>
-          <Text
-            transition={'all .3s ease'}
-            _groupHover={{ color: 'brand.500' }}
-            fontWeight={500}>
-            {label}
-          </Text>
-          <Text fontSize={'sm'}>{subLabel}</Text>
-        </Box>
-        <Flex
-          transition={'all .3s ease'}
-          transform={'translateX(-10px)'}
-          opacity={0}
-          _groupHover={{ opacity: '100%', transform: 'translateX(0)' }}
-          justify={'flex-end'}
-          align={'center'}
-          flex={1}>
-          <Icon color={'brand.500'} w={5} h={5} as={ChevronRightIcon} />
-        </Flex>
-      </Stack>
-    </Link>
+    <Stack direction="row" spacing={0} align="center">
+      {NAV_ITEMS.filter(item => !item.authRequired || isLoggedIn).map((navItem) => (
+        navItem.children ? (
+          <Menu
+            key={navItem.label}
+            onOpen={() => onDropdownChange(true)}
+            onClose={() => onDropdownChange(false)}
+            placement="bottom-start"
+          >
+            <MenuButton
+              as={Button}
+              variant="ghost"
+              size="sm"
+              px={3}
+              fontSize="sm"
+              fontWeight="500"
+              color={TEXT_MUTED}
+              rightIcon={<ChevronDownIcon boxSize={3} />}
+              bg="transparent"
+              _hover={{ color: TEXT_HOVER, bg: 'rgba(255,255,255,0.06)' }}
+              _active={{ bg: 'rgba(255,255,255,0.06)' }}
+              _expanded={{ color: TEXT_HOVER }}
+            >
+              {navItem.label}
+            </MenuButton>
+            <MenuList
+              bg="rgba(18,18,20,0.98)"
+              backdropFilter="blur(20px)"
+              border="1px solid"
+              borderColor={GLASS_BORDER}
+              boxShadow="0 24px 48px rgba(0,0,0,0.6)"
+              borderRadius="xl"
+              p={2}
+              minW="240px"
+              mt={1}
+            >
+              {navItem.children.map((child) => (
+                <MenuItem
+                  key={child.label}
+                  as={RouterLink}
+                  to={child.href}
+                  bg="transparent"
+                  borderRadius="lg"
+                  px={3}
+                  py={3}
+                  _hover={{ bg: 'rgba(99,102,241,0.15)' }}
+                  onClick={() => onDropdownChange(false)}
+                >
+                  <Box>
+                    <Text fontWeight="600" fontSize="sm" color={TEXT_DEFAULT}>{child.label}</Text>
+                    {child.subLabel && (
+                      <Text fontSize="xs" color={TEXT_MUTED} mt={0.5}>{child.subLabel}</Text>
+                    )}
+                  </Box>
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+        ) : (
+          <Link
+            key={navItem.label}
+            as={RouterLink}
+            to={navItem.href ?? '#'}
+            px={3}
+            py={2}
+            fontSize="sm"
+            fontWeight="500"
+            color={TEXT_MUTED}
+            borderRadius="md"
+            display="block"
+            textDecoration="none"
+            transition="all 0.15s"
+            _hover={{ color: TEXT_HOVER, bg: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}
+          >
+            {navItem.label}
+          </Link>
+        )
+      ))}
+    </Stack>
   );
 };
 
 const MobileNav = ({ isLoggedIn, handleLogout }) => {
-  const bgColor = useColorModeValue('white', 'gray.800');
-  const sairColor = useColorModeValue('gray.600', 'gray.200');
+  const bgColor = '#111113';
+  const sairColor = 'rgba(255,255,255,0.6)';
 
   return (
-    <Stack
+    <Box
       bg={bgColor}
-      p={4}
-      display={{ md: 'none' }}>
-      {NAV_ITEMS.filter(item => !item.authRequired || isLoggedIn).map((navItem) => (
-        <MobileNavItem key={navItem.label} {...navItem} />
-      ))}
-      {isLoggedIn && (
-        <Box py={2} onClick={handleLogout}>
-          <Flex
-            align="center"
-            p={2}
-            fontSize="md"
-            fontWeight={500}
-            color={sairColor}>
+      px={4}
+      py={3}
+      borderTop="1px solid"
+      borderColor={GLASS_BORDER}
+    >
+      <Stack spacing={1}>
+        {NAV_ITEMS.filter(item => !item.authRequired || isLoggedIn).map((navItem) => (
+          <MobileNavItem key={navItem.label} {...navItem} />
+        ))}
+        {isLoggedIn ? (
+          <Box
+            py={2}
+            px={3}
+            borderRadius="lg"
+            cursor="pointer"
+            onClick={handleLogout}
+            color="red.400"
+            fontWeight="500"
+            fontSize="sm"
+            _hover={{ bg: 'rgba(239,68,68,0.1)' }}
+            transition="all 0.15s"
+          >
             Sair
-          </Flex>
-        </Box>
-      )}
-    </Stack>
+          </Box>
+        ) : (
+          <Stack spacing={2} pt={2}>
+            <Button as={RouterLink} to="/login" variant="outline" size="sm" color="white" borderColor={GLASS_BORDER}>
+              Entrar
+            </Button>
+            <Button as={RouterLink} to="/register" colorScheme="brand" size="sm">
+              Começar grátis
+            </Button>
+          </Stack>
+        )}
+      </Stack>
+    </Box>
   );
 };
 
@@ -269,95 +337,73 @@ const MobileNavItem = ({ label, children, href }) => {
   const { isOpen, onToggle } = useDisclosure();
 
   return (
-    <Stack spacing={4} onClick={children && onToggle}>
+    <Box>
       <Flex
-        py={2}
-        as={RouterLink}
-        to={href ?? '#'}
-        justify={'space-between'}
-        align={'center'}
-        _hover={{
-          textDecoration: 'none',
-        }}>
-        <Text
-          fontWeight={600}
-          color={useColorModeValue('gray.600', 'gray.200')}>
-          {label}
-        </Text>
+        as={children ? 'div' : RouterLink}
+        to={!children ? (href ?? '#') : undefined}
+        onClick={children ? onToggle : undefined}
+        px={3}
+        py={2.5}
+        borderRadius="lg"
+        justify="space-between"
+        align="center"
+        cursor="pointer"
+        color={TEXT_DEFAULT}
+        fontWeight="500"
+        fontSize="sm"
+        _hover={{ bg: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}
+        transition="all 0.15s"
+      >
+        <Text>{label}</Text>
         {children && (
           <Icon
             as={ChevronDownIcon}
-            transition={'all .25s ease-in-out'}
+            transition="all .2s ease-in-out"
             transform={isOpen ? 'rotate(180deg)' : ''}
-            w={6}
-            h={6}
+            color={TEXT_MUTED}
           />
         )}
       </Flex>
 
-      <Collapse in={isOpen} animateOpacity style={{ marginTop: '0!important' }}>
-        <Stack
-          mt={2}
-          pl={4}
-          borderLeft={1}
-          borderStyle={'solid'}
-          borderColor={useColorModeValue('gray.200', 'gray.700')}
-          align={'start'}>
-          {children &&
-            children.map((child) => (
-              <Link
-                key={child.label}
-                as={RouterLink}
-                py={2}
-                to={child.href}>
-                {child.label}
-              </Link>
-            ))}
+      <Collapse in={isOpen} animateOpacity>
+        <Stack pl={4} pt={1} spacing={1}>
+          {children?.map((child) => (
+            <Link
+              key={child.label}
+              as={RouterLink}
+              to={child.href}
+              px={3}
+              py={2}
+              borderRadius="lg"
+              fontSize="sm"
+              color={TEXT_MUTED}
+              fontWeight="500"
+              _hover={{ color: 'white', bg: 'rgba(255,255,255,0.06)', textDecoration: 'none' }}
+              transition="all 0.15s"
+            >
+              {child.label}
+            </Link>
+          ))}
         </Stack>
       </Collapse>
-    </Stack>
+    </Box>
   );
 };
 
 const NAV_ITEMS = [
-  {
-    label: 'Início',
-    href: '/',
-  },
+  { label: 'Início', href: '/' },
   {
     label: 'Recursos',
     href: '#',
+    authRequired: true,
     children: [
-      {
-        label: 'Gerador de Textos',
-        subLabel: 'Crie textos didáticos personalizados',
-        href: '/generate-material',
-        authRequired: true,
-      },
-      {
-        label: 'Criador de Exercícios',
-        subLabel: 'Elabore exercícios dinâmicos',
-        href: '/create-exercises',
-        authRequired: true,
-      },
-      {
-        label: 'Avaliações',
-        subLabel: 'Desenvolva avaliações personalizadas',
-        href: '/create-assessment',
-        authRequired: true,
-      },
+      { label: 'Gerador de Textos', subLabel: 'Crie textos didáticos personalizados', href: '/generate-material', authRequired: true },
+      { label: 'Criador de Exercícios', subLabel: 'Elabore exercícios dinâmicos', href: '/create-exercises', authRequired: true },
+      { label: 'Avaliações', subLabel: 'Desenvolva avaliações personalizadas', href: '/create-assessment', authRequired: true },
     ],
-    authRequired: true,
   },
-  {
-    label: 'Biblioteca de Materiais',
-    href: '/library',
-    authRequired: true,
-  },
-  {
-    label: 'Sobre',
-    href: '/sobre', // Alterado de '/about' para '/sobre'
-  },
+  { label: 'Biblioteca', href: '/library', authRequired: true },
+  { label: 'Sobre', href: '/sobre' },
 ];
 
 export default Navbar;

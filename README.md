@@ -1,152 +1,208 @@
-# EduAI (Projeto Final)
+# EduAI
 
-Plataforma educacional que utiliza IA para gerar textos de apoio, listas de exercícios e avaliações personalizadas. O projeto está dentro de `ProjetoFinal/src` e combina um backend em **FastAPI** com um frontend em **React (Vite + Chakra UI)**, preparado para execução local ou implantação em serviços como Railway e Vercel.
+Plataforma educacional com IA para professores gerarem textos de apoio, listas de exercícios e avaliações personalizadas. Combina um backend **FastAPI** com um frontend **React + Chakra UI**, implantado no Railway (backend) e Vercel (frontend).
 
 ## Estrutura do Projeto
 
 ```
 ProjetoFinal/
-├── public/                       # Arquivos estáticos do frontend (favicons, manifest, fontes)
 └── src/
-    ├── back/                     # API FastAPI + integração Gemini
-    │   ├── main.py               # Instancia FastAPI, CORS, rotas de geração e exportação
-    │   ├── auth.py               # Rotas de autenticação, criação/validação de JWT
-    │   ├── security.py           # Helpers de senha/JWT (OAuth2PasswordBearer, hashing)
-    │   ├── crud.py               # Operações de banco (usuários, textos, exercícios, avaliações)
-    │   ├── models.py             # Modelos SQLAlchemy (User, Perfil, TextoGerado, ListaExercicios)
-    │   ├── schemas.py            # Modelos Pydantic para requests/responses
-    │   ├── database.py           # Configuração do SQLAlchemy + leitura de `DATABASE_URL`
-    │   ├── export_services.py    # Exportação para PDF/DOCX via reportlab e python-docx
-    │   ├── fix_exercise_type.py  # Utilitário para corrigir tipos de exercícios salvos
-    │   ├── requirements.txt      # Dependências do backend
-    │   └── app.log               # Gerado em runtime: logs de erros
-    └── front/                    # Aplicação React
-        ├── App.jsx / App.css     # Shell da aplicação (tema Chakra + rotas)
-        ├── main.jsx              # Ponto de entrada Vite
-        ├── pages/                # Páginas principais (Home, Dashboard, Library, Login, Register, etc.)
-        ├── components/           # Navbar, Footer, Login/Register forms
-        ├── services/             # Clientes Axios (api.js) e serviços de autenticação/conteúdo
-        ├── assets/               # Imagens e SVGs utilizados no layout
-        ├── index.html            # Template HTML do Vite
-        ├── package.json          # Scripts e dependências do frontend
-        └── vite.config.js        # Configuração de build
+    ├── back/                     # API FastAPI
+    │   ├── main.py               # App FastAPI: rotas de geração, exportação e CORS
+    │   ├── auth.py               # Autenticação JWT (OAuth2PasswordBearer)
+    │   ├── security.py           # Hashing de senha e criação de tokens
+    │   ├── crud.py               # Operações de banco de dados
+    │   ├── models.py             # Modelos SQLAlchemy (User, TextoGerado, Avaliacao…)
+    │   ├── schemas.py            # Schemas Pydantic para request/response
+    │   ├── database.py           # Configuração SQLAlchemy via DATABASE_URL
+    │   ├── export_services.py    # Exportação PDF/DOCX (reportlab + python-docx)
+    │   └── requirements.txt      # Dependências Python
+    └── front/                    # React + Vite + Chakra UI
+        ├── pages/                # Home, Dashboard, Library, Login, Register…
+        ├── components/           # Navbar, Footer, forms
+        ├── services/             # Clientes Axios para a API
+        ├── App.jsx               # Rotas e shell da aplicação
+        └── main.jsx              # Ponto de entrada + tema Chakra
 ```
-
-## Principais Funcionalidades
-- **Geração assistida por IA** com Google Gemini 2.5 Flash para textos de apoio, listas de exercícios e avaliações.
-- **Exportação** de materiais em PDF ou DOCX.
-- **Autenticação JWT** com cadastro, login, recuperação do perfil e proteção das rotas de geração.
-- **Persistência** de textos e exercícios/avaliações em banco PostgreSQL (ou outro dialeto compatível com SQLAlchemy).
-- **UI responsiva** em React + Chakra UI com páginas de login, dashboard, biblioteca e construtores de materiais.
 
 ## Backend (FastAPI)
 
 ### Requisitos
 - Python 3.10+
-- PostgreSQL (padrão) ou SQLite (ajuste `DATABASE_URL`)
-- Chave de API do Google Generative AI (`GOOGLE_API_KEY`)
+- Chave de API do Google Gemini (`GOOGLE_API_KEY`)
+- PostgreSQL (produção) ou SQLite (desenvolvimento local)
 
-### Configuração
-1. Acesse o diretório do backend:
-   ```bash
-   cd ProjetoFinal/src/back
-   ```
-2. (Opcional) Crie e ative um ambiente virtual:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   ```
-3. Instale dependências:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Crie um arquivo `.env` (no mesmo diretório) com as variáveis:
-   ```bash
-   SECRET_KEY="sua-chave-secreta"            # Assinatura do JWT
-   GOOGLE_API_KEY="sua-chave-gemini"         # Necessária para as rotas de geração
-   DATABASE_URL="postgresql://user:senha@host:porta/banco"  # Opcional: usa padrão do Railway se vazio
-   ```
-5. Inicie a API:
-   ```bash
-   uvicorn main:app --reload
-   ```
-   Por padrão, a API roda em `http://localhost:8000`.
+### Configuração local
+
+```bash
+cd ProjetoFinal/src/back
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Crie um arquivo `.env` (nunca commite este arquivo):
+
+```env
+SECRET_KEY="uma-chave-secreta-longa"
+GOOGLE_API_KEY="sua-chave-gemini"
+DATABASE_URL="sqlite:///./eduai.db"
+FRONTEND_URL="http://localhost:5173"   # Libera CORS para desenvolvimento local
+```
+
+Inicie a API:
+
+```bash
+uvicorn main:app --reload
+# Disponível em http://localhost:8000
+# Documentação interativa em http://localhost:8000/docs
+```
+
+### Variáveis de ambiente obrigatórias (produção)
+
+| Variável | Descrição |
+|---|---|
+| `SECRET_KEY` | Chave para assinatura dos tokens JWT |
+| `GOOGLE_API_KEY` | Chave da API do Google Gemini |
+| `DATABASE_URL` | URL do banco PostgreSQL (Railway fornece automaticamente) |
+| `FRONTEND_URL` | *(opcional)* Origem extra liberada no CORS — necessária apenas em dev local |
+
+### Modelo de IA
+
+O modelo configurado é **`gemini-3.1-flash-lite-preview`** (Google Gemini 3.1 Flash Lite), que oferece:
+- 500 requisições por dia (RPD)
+- 15 requisições por minuto (RPM)
+- 250K tokens por minuto (TPM)
+
+O backend implementa:
+- **Cache por usuário** para textos de apoio (evita regerar conteúdo idêntico)
+- **Retry com backoff exponencial** para erros 429 (quota) e 503 (indisponibilidade)
 
 ### Endpoints principais
-- `GET /` — Status da API.
-- `POST /auth/users/register` — Criação de usuário.
-- `POST /auth/token` — Login (OAuth2 password flow) e obtenção de JWT.
-- `GET /auth/users/me` — Dados do usuário autenticado.
-- `GET/POST /auth/users/profile` — Consulta/atualização de perfil.
-- `POST /textos-apoio` — Gera texto de apoio (Markdown estruturado) e persiste em `TextoGerado`.
-- `POST /listas-exercicios` — Gera lista de exercícios e salva em `ListaExercicios` (tipo "exercicio").
-- `POST /avaliacoes` — Gera avaliação com distribuição de dificuldade e salva em `ListaExercicios` (tipo "avaliacao").
-- `POST /exportar/pdf` e `POST /exportar/docx` — Exporta materiais em PDF ou DOCX.
 
-Todas as rotas de geração/exportação exigem `Authorization: Bearer <token>`.
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/` | Status da API |
+| `POST` | `/auth/users/register` | Cadastro de usuário |
+| `POST` | `/auth/token` | Login — retorna JWT |
+| `GET` | `/auth/users/me` | Dados do usuário autenticado |
+| `GET/POST` | `/auth/users/profile` | Perfil do usuário |
+| `POST` | `/textos-apoio` | Gera texto de apoio (9 seções em Markdown) |
+| `PUT` | `/textos-apoio/{id}` | Edita texto de apoio |
+| `POST` | `/listas-exercicios` | Gera lista de exercícios com gabarito comentado |
+| `POST` | `/avaliacoes` | Gera avaliação com distribuição de dificuldade |
+| `GET` | `/materiais` | Lista materiais do usuário |
+| `GET` | `/listas-exercicios` | Lista exercícios/avaliações do usuário |
+| `GET` | `/listas-exercicios/{id}/exportar/{fmt}` | Exporta exercício em `pdf` ou `docx` |
+| `GET` | `/textos-apoio/{id}/exportar/{fmt}` | Exporta texto em `pdf` ou `docx` |
+| `GET` | `/dashboard` | Estatísticas agregadas do usuário |
 
-### Notas sobre CORS e Gemini
-- As origens liberadas estão em `main.py` (`https://edu-ai-drab.vercel.app`, `https://eduai-production-afcf.up.railway.app`). Ajuste `allow_origins` se for usar domínios diferentes em desenvolvimento.
-- O modelo Gemini configurado é `gemini-2.5-flash`. Sem `GOOGLE_API_KEY` a API não inicia.
+Todas as rotas de geração, exportação e dashboard exigem `Authorization: Bearer <token>`.
 
 ## Frontend (React + Vite + Chakra UI)
 
 ### Requisitos
 - Node.js 18+
 
-### Configuração
-1. Acesse o diretório do frontend:
-   ```bash
-   cd ProjetoFinal/src/front
-   ```
-2. Instale dependências:
-   ```bash
-   npm install
-   ```
-3. Ajuste o endpoint da API em `services/api.js` caso rode a API localmente:
-   ```js
-   const API_URL = 'http://localhost:8000';
-   ```
-4. Inicie o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
-   A aplicação fica em `http://localhost:5173`.
+### Configuração local
 
-### Páginas e fluxos principais
-- **Home/About:** apresentação do produto.
-- **Register/Login:** cria e autentica usuários; tokens são salvos no `localStorage` via `authService.js`.
-- **Dashboard:** visão geral de conteúdos gerados e atalhos para criação.
-- **MaterialGenerator / ExerciseBuilder / AssessmentCreator:** formulários que consomem as rotas `/textos-apoio`, `/listas-exercicios` e `/avaliacoes`.
-- **MaterialsLibrary:** lista materiais salvos, com botões de exportação.
-- **UserProfile:** permite visualizar/atualizar dados do perfil autenticado.
+```bash
+cd ProjetoFinal/src/front
+npm install
+```
+
+Crie um arquivo `.env` no diretório do frontend:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+Sem este arquivo, o frontend aponta para a URL de produção do Railway automaticamente.
+
+Inicie o servidor de desenvolvimento:
+
+```bash
+npm run dev
+# Disponível em http://localhost:5173
+```
+
+### Páginas e rotas
+
+| Rota | Página | Auth |
+|---|---|---|
+| `/` | Home — landing page | Não |
+| `/login` | Login | Não |
+| `/register` | Cadastro | Não |
+| `/sobre` | Sobre a plataforma | Não |
+| `/dashboard` | Dashboard do professor | Sim |
+| `/generate-material` | Gerador de textos de apoio | Sim |
+| `/create-exercises` | Criador de exercícios | Sim |
+| `/create-assessment` | Criador de avaliações | Sim |
+| `/library` | Biblioteca de materiais | Sim |
+| `/profile` | Perfil do usuário | Sim |
 
 ### Serviços
-- `services/api.js`: instancia Axios com interceptor para anexar o JWT.
-- `authService.js`: login, registro e recuperação de usuário atual.
-- `contentService.js`: chamadas de geração (textos, exercícios, avaliações).
-- `materialsService.js`: recuperação/exportação de materiais salvos.
-- `dashboardService.js`: dados agregados para o dashboard.
 
-## Execução simultânea (dev)
-1. Inicie o backend em `ProjetoFinal/src/back` com `uvicorn main:app --reload`.
-2. Em outro terminal, inicie o frontend em `ProjetoFinal/src/front` com `npm run dev` (ajuste `API_URL` para `http://localhost:8000`).
-3. Acesse `http://localhost:5173` e use o fluxo de cadastro/login antes de gerar materiais.
+| Arquivo | Função |
+|---|---|
+| `services/api.js` | Instância Axios com interceptor JWT. URL base via `VITE_API_URL` env var. |
+| `authService.js` | Login, registro, logout, leitura do usuário atual |
+| `contentService.js` | Geração de textos, exercícios e avaliações |
+| `materialsService.js` | CRUD de materiais e exportação |
+| `dashboardService.js` | Dados agregados para o dashboard |
+
+## Execução local completa
+
+```bash
+# Terminal 1 — backend
+cd ProjetoFinal/src/back
+source venv/bin/activate
+uvicorn main:app --reload
+
+# Terminal 2 — frontend
+cd ProjetoFinal/src/front
+npm run dev
+```
+
+Acesse `http://localhost:5173` e crie uma conta antes de gerar materiais.
 
 ## Implantação
-- **Backend:** pode ser implantado em Railway/Render/Heroku; defina `GOOGLE_API_KEY`, `SECRET_KEY` e `DATABASE_URL` nas variáveis de ambiente e abra a porta do `uvicorn` configurada pelo provedor.
-- **Frontend:** pronto para deploy no Vercel/Netlify. Configure a variável de ambiente (ou substitua em build) para apontar `API_URL` para o domínio público da API.
-- Ajuste as origens CORS no backend para incluir o domínio público do frontend.
+
+### Backend — Railway
+1. Conecte o repositório ao Railway.
+2. Configure as variáveis de ambiente: `SECRET_KEY`, `GOOGLE_API_KEY`, `DATABASE_URL` (o Railway PostgreSQL fornece a URL automaticamente ao adicionar o serviço de banco).
+3. O comando de start deve ser: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+
+### Frontend — Vercel
+1. Conecte o repositório ao Vercel apontando para `ProjetoFinal/src/front`.
+2. **Não defina `VITE_API_URL`** nas variáveis do Vercel — o fallback para a URL de produção do Railway é usado automaticamente.
+3. O arquivo `vercel.json` já está configurado com o rewrite para SPA.
 
 ## Solução de problemas
-- **API não inicia por falta de chave:** verifique `GOOGLE_API_KEY` no `.env`.
-- **Erro de banco:** confirme `DATABASE_URL` e se o usuário possui permissões de criação de tabelas; por padrão, `models.Base.metadata.create_all` cria as tabelas na inicialização.
-- **403/401 no frontend:** assegure que o token JWT está presente em `localStorage` e que a base URL da API está correta.
-- **CORS bloqueado:** adicione a origem do frontend em `allow_origins` no `main.py`.
+
+| Problema | Causa provável | Solução |
+|---|---|---|
+| `SECRET_KEY não definida` | Arquivo `.env` ausente ou com typo | Verifique o `.env` no diretório `back/` |
+| `GOOGLE_API_KEY não definida` | Chave não configurada | Adicione ao `.env` ou variáveis do Railway |
+| `DATABASE_URL não definida` | Banco não configurado | Use `sqlite:///./eduai.db` localmente |
+| Erro 503 da API Gemini | Alta demanda temporária | O backend tenta automaticamente até 3 vezes com backoff |
+| CORS bloqueado localmente | `FRONTEND_URL` não definida | Adicione `FRONTEND_URL=http://localhost:5173` ao `.env` do backend |
+| 401 no frontend | Token expirado | Faça logout e login novamente |
 
 ## Scripts úteis
-- **Backend:** `uvicorn main:app --reload` (desenvolvimento), `pytest` (quando testes existirem).
-- **Frontend:** `npm run dev`, `npm run build`, `npm run preview`, `npm run lint`.
+
+```bash
+# Backend
+uvicorn main:app --reload        # Desenvolvimento
+pytest                           # Testes
+
+# Frontend
+npm run dev                      # Desenvolvimento
+npm run build                    # Build de produção
+npm run preview                  # Preview do build
+npm run lint                     # Lint
+```
 
 ## Licença
-Projeto licenciado sob a [MIT License](https://opensource.org/licenses/MIT).
+
+[MIT License](https://opensource.org/licenses/MIT)
