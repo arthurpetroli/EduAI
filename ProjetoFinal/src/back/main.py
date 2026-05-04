@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from fastapi import FastAPI, Depends, HTTPException, Path, Request
 from sqlalchemy.orm import Session
@@ -84,6 +85,77 @@ def generate_with_retry(client, prompt, config=None, max_retries=3):
     raise RuntimeError("Limite de tentativas da API Gemini atingido")
 
 
+def latex_to_unicode(text: str) -> str:
+    """Converte notação LaTeX para Unicode legível por humanos."""
+    if not text:
+        return text
+
+    # Strip $$ e $ wrappers, mantendo o conteúdo interno
+    text = re.sub(r'\$\$(.*?)\$\$', lambda m: m.group(1), text, flags=re.DOTALL)
+    text = re.sub(r'\$(.*?)\$', lambda m: m.group(1), text)
+
+    # \frac{a}{b} → (a/b)  — apenas um nível de profundidade
+    text = re.sub(r'\\frac\{([^{}]*)\}\{([^{}]*)\}', r'(\1/\2)', text)
+
+    # \sqrt{x} → √(x) e \sqrt isolado → √
+    text = re.sub(r'\\sqrt\{([^{}]*)\}', r'√(\1)', text)
+    text = re.sub(r'\\sqrt\b', '√', text)
+
+    # Superscripts: ^{n} e ^n (dígito único)
+    _sup = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵',
+             '6':'⁶','7':'⁷','8':'⁸','9':'⁹','+':'⁺','-':'⁻','n':'ⁿ'}
+    text = re.sub(r'\^\{([^{}]*)\}', lambda m: ''.join(_sup.get(c, c) for c in m.group(1)), text)
+    text = re.sub(r'\^([0-9])', lambda m: _sup.get(m.group(1), m.group(1)), text)
+
+    # Subscripts: _{n} e _n (dígito único)
+    _sub = {'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅',
+             '6':'₆','7':'₇','8':'₈','9':'₉','+':'₊','-':'₋','n':'ₙ','i':'ᵢ'}
+    text = re.sub(r'_\{([^{}]*)\}', lambda m: ''.join(_sub.get(c, c) for c in m.group(1)), text)
+    text = re.sub(r'_([0-9])', lambda m: _sub.get(m.group(1), m.group(1)), text)
+
+    # Letras gregas
+    _greek = [
+        (r'\\Delta', 'Δ'), (r'\\delta', 'δ'), (r'\\Alpha', 'Α'), (r'\\alpha', 'α'),
+        (r'\\Beta', 'Β'), (r'\\beta', 'β'), (r'\\Gamma', 'Γ'), (r'\\gamma', 'γ'),
+        (r'\\varepsilon', 'ε'), (r'\\epsilon', 'ε'), (r'\\Zeta', 'Ζ'), (r'\\zeta', 'ζ'),
+        (r'\\Eta', 'Η'), (r'\\eta', 'η'), (r'\\Theta', 'Θ'), (r'\\theta', 'θ'),
+        (r'\\Iota', 'Ι'), (r'\\iota', 'ι'), (r'\\Kappa', 'Κ'), (r'\\kappa', 'κ'),
+        (r'\\Lambda', 'Λ'), (r'\\lambda', 'λ'), (r'\\Mu', 'Μ'), (r'\\mu', 'μ'),
+        (r'\\Nu', 'Ν'), (r'\\nu', 'ν'), (r'\\Xi', 'Ξ'), (r'\\xi', 'ξ'),
+        (r'\\Pi', 'Π'), (r'\\pi', 'π'), (r'\\Rho', 'Ρ'), (r'\\rho', 'ρ'),
+        (r'\\Sigma', 'Σ'), (r'\\sigma', 'σ'), (r'\\Tau', 'Τ'), (r'\\tau', 'τ'),
+        (r'\\Phi', 'Φ'), (r'\\phi', 'φ'), (r'\\varphi', 'φ'), (r'\\Chi', 'Χ'), (r'\\chi', 'χ'),
+        (r'\\Psi', 'Ψ'), (r'\\psi', 'ψ'), (r'\\Omega', 'Ω'), (r'\\omega', 'ω'),
+    ]
+    for pat, rep in _greek:
+        text = re.sub(pat + r'\b', rep, text)
+
+    # Operadores e símbolos matemáticos
+    _ops = [
+        (r'\\pm', '±'), (r'\\mp', '∓'), (r'\\times', '×'), (r'\\div', '÷'),
+        (r'\\cdot', '·'), (r'\\neq', '≠'), (r'\\ne\b', '≠'),
+        (r'\\leq', '≤'), (r'\\le\b', '≤'), (r'\\geq', '≥'), (r'\\ge\b', '≥'),
+        (r'\\approx', '≈'), (r'\\equiv', '≡'), (r'\\sim\b', '∼'),
+        (r'\\Leftrightarrow', '⇔'), (r'\\Rightarrow', '⇒'), (r'\\Leftarrow', '⇐'),
+        (r'\\leftrightarrow', '↔'), (r'\\rightarrow', '→'), (r'\\leftarrow', '←'),
+        (r'\\to\b', '→'), (r'\\infty', '∞'),
+        (r'\\notin', '∉'), (r'\\in\b', '∈'),
+        (r'\\subseteq', '⊆'), (r'\\subset', '⊂'), (r'\\supseteq', '⊇'), (r'\\supset', '⊃'),
+        (r'\\cup', '∪'), (r'\\cap', '∩'),
+        (r'\\int', '∫'), (r'\\sum', 'Σ'), (r'\\prod', 'Π'),
+        (r'\\partial', '∂'), (r'\\nabla', '∇'),
+        (r'\\forall', '∀'), (r'\\exists', '∃'),
+        (r'\\ldots', '…'), (r'\\cdots', '···'), (r'\\vdots', '⋮'),
+    ]
+    for pat, rep in _ops:
+        text = re.sub(pat, rep, text)
+
+    # \text{...}, \mathrm{...}, \mathbf{...} → conteúdo sem markup
+    text = re.sub(r'\\(?:text|mathrm|mathbf|mathit|mathcal)\{([^{}]*)\}', r'\1', text)
+
+    return text
+
+
 app.include_router(auth_router, prefix="/auth")
 
 @app.get("/", tags=["Status"])
@@ -165,7 +237,8 @@ Relacione com outras disciplinas, temas do currículo ou competências gerais da
 FORMATO:
 - Markdown estrito: ## para seções, **negrito**, *itálico*, listas `-` e `1.`
 - 2–3 parágrafos por seção, separados por linha em branco
-- Garantia absoluta de precisão factual — nenhum erro conceitual é aceitável"""
+- Garantia absoluta de precisão factual — nenhum erro conceitual é aceitável
+- MATEMÁTICA: NUNCA use LaTeX ($...$, $$...$$, \frac, \sqrt, \times, etc.). Escreva diretamente em Unicode: ², ³, √, ±, Δ, ≠, ≤, ≥, ×, ÷, →, π, α, β, θ. Frações como (numerador/denominador). Exemplo correto: x = (-b ± √Δ) / (2a)"""
 
         response = generate_with_retry(
             client,
@@ -176,8 +249,8 @@ FORMATO:
             ),
         )
 
-        # Limpa possíveis blocos de código da resposta da IA
         cleaned_response = response.text.strip().replace("```markdown", "").replace("```", "").strip()
+        cleaned_response = latex_to_unicode(cleaned_response)
 
         # Criação do texto gerado
         db_texto = models.TextoGerado(
@@ -260,6 +333,7 @@ QUALIDADE OBRIGATÓRIA:
 - Todas as respostas devem ser factualmente corretas
 - Vocabulário e complexidade adequados ao nível {request.nivel}
 - Para múltipla escolha: os distratores errados devem representar equívocos conceituais reais que estudantes cometem
+- MATEMÁTICA: NUNCA use LaTeX ($...$, $$...$$, \frac, \sqrt, \times, etc.). Use Unicode diretamente: ², ³, √, ±, Δ, ≠, ≤, ≥, ×, ÷, →, π. Frações: (numerador/denominador). Exemplo: x = (-b ± √Δ) / (2a)
 
 Retorne SOMENTE JSON válido, sem nenhum texto antes ou depois:
 {{
@@ -278,11 +352,12 @@ Retorne SOMENTE JSON válido, sem nenhum texto antes ou depois:
         )
 
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        cleaned_ia_response = latex_to_unicode(cleaned_ia_response)
 
         return crud.create_lista_exercicios(
-            db=db, 
-            request=request, 
-            dados_ia=cleaned_ia_response, 
+            db=db,
+            request=request,
+            dados_ia=cleaned_ia_response,
             user_id=current_user.id,
             tipo="exercicio"
         )
@@ -332,6 +407,7 @@ QUALIDADE PEDAGÓGICA:
 - Garanta precisão factual absoluta em enunciados e gabaritos
 - As questões devem ser adequadas para uma avaliação formal do nível {request.nivel}
 - Cubra diferentes aspectos e subtópicos de "{request.topico}"
+- MATEMÁTICA: NUNCA use LaTeX ($...$, $$...$$, \frac, \sqrt, \times, etc.). Use Unicode diretamente: ², ³, √, ±, Δ, ≠, ≤, ≥, ×, ÷, →, π. Frações: (numerador/denominador). Exemplo: x = (-b ± √Δ) / (2a)
 
 Retorne SOMENTE JSON válido, sem nenhum texto antes ou depois:
 {{
@@ -367,6 +443,7 @@ Retorne SOMENTE JSON válido, sem nenhum texto antes ou depois:
         )
 
         cleaned_ia_response = response.text.strip().replace("```json", "").replace("```", "").strip()
+        cleaned_ia_response = latex_to_unicode(cleaned_ia_response)
 
         return crud.create_lista_exercicios(
             db=db,
